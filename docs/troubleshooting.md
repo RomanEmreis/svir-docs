@@ -28,7 +28,7 @@ What a symptom usually means. For what each error kind is, see
 | `Transport`, and `is_unsent()` is true | Nothing listens at the URL: the server is not running, or the port is wrong |
 | `Unsupported`, detail "HTTP 404" | The base URL points somewhere that is not the API (a path too many, a web UI), or the server does not know the model. `server_message()` usually says which |
 | `Unsupported`, detail "HTTP 400" or "HTTP 422" | The server rejected the request. Read `server_message()`. Common: a model without tool or image support, or a message the server's chat template cannot take |
-| `Unsupported`, detail "HTTP 400", `server_message()` "The response was filtered" | Azure OpenAI's content filter blocked the prompt. Nothing was generated; the prompt has to change |
+| `ContentFilter`, detail "HTTP 400" | Azure OpenAI's content filter blocked the prompt. Nothing was generated, but the evaluation was billed: change the prompt rather than send it again |
 | `Unsupported`: "the response is not an event stream" | A success status with HTML or JSON: a gateway page, or an endpoint that ignores `stream` |
 | `ContextOverflow` before anything was sent | `context_tokens` is set and the body's bytes plus `max_tokens` exceed it. Bytes overestimate images by far |
 | `ContextOverflow` from the server | The conversation outgrew the context. Some servers say it inside a `200` stream; svir reports both the same way |
@@ -55,6 +55,7 @@ What a symptom usually means. For what each error kind is, see
 | `done.text` starts with blank lines | The server left them after the reasoning. Trim for display |
 | `done.text` is empty and `finish` is `Length` | Reasoning used the whole output budget. Raise `max_tokens`, or lower the effort |
 | `done.text` is empty and `finish` is `ToolCalls` | Not a failure: the model is waiting for tool results |
+| `finish` is `ContentFilter`, though the whole answer streamed | Azure's asynchronous content filter vets the answer after streaming it, and blocked part of it. Withdraw the text the user was shown |
 | The model never calls a tool | The model has no tool support, or the description does not say when to use the tool |
 | The next request after a tool call is rejected | The assistant turn or a result is missing: `request.assistant(done).tool_results(results)` |
 | The same answer, whatever model is named | Some local servers answer with the loaded model when they do not know the ID. List the models |

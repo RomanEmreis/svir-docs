@@ -3,7 +3,7 @@ name: svir
 description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, hosted endpoints), tool calling and the loop that feeds results back, image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions codec on its own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools or relay its stream from Rust through an OpenAI-compatible endpoint, and when reviewing or debugging such code.
 license: MIT OR Apache-2.0
 metadata:
-  svir-version: "0.1.2"
+  svir-version: "0.1.3"
   msrv: "1.85"
   edition: "2024"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
@@ -43,7 +43,8 @@ In an existing project, read `Cargo.toml` first:
 |---|---|
 | `svir = "0.1"` and no `features` key | `client` and `tls` are on: everything here except `Tools::add` and the `Trace` layer |
 | `svir = "=0.1.0"`, or a lock file on 0.1.0 | No `Error::status()`, no `tls-aws-lc`, a 4 MiB default wire limit, and inline `<think>` tags left in the answer when a delta is only part of a tag. Later 0.1 releases are drop-in |
-| `svir = "=0.1.1"`, or a lock file on 0.1.1 | No `FinishReason::ContentFilter`: a filtered answer is `Unsupported`. Azure OpenAI streams fail in strict mode with "an empty choices array before the finish reason". 0.1.2 is drop-in |
+| `svir = "=0.1.1"`, or a lock file on 0.1.1 | No `FinishReason::ContentFilter`: a filtered answer is `Unsupported`. Azure OpenAI streams fail in strict mode with "an empty choices array before the finish reason". Later 0.1 releases are drop-in |
+| `svir = "=0.1.2"`, or a lock file on 0.1.2 | No `ErrorKind::ContentFilter`: a prompt the content filter blocked is `Unsupported`, and, since usage is asked for by default, is sent a second time without `reasoning_effort` and `stream_options`. An annotation from Azure's asynchronous content filter fails the stream with `Unsupported`. 0.1.3 is drop-in |
 | `features = ["schemars"]` | `Tools::add`, which derives a tool's input schema from its argument type |
 | `features = ["tracing"]` | The `Trace` layer |
 | `default-features = false` | Types and the codec only: no `Client`, no `EventStream`, no layers, no attachments read from disk. Read `references/codec.md` |

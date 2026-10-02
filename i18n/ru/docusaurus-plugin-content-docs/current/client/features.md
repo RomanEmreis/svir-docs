@@ -63,7 +63,7 @@ CryptoProvider available».
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.2", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.3", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 Другой способ — исправить код, который полагается на умолчание: передать
@@ -72,13 +72,14 @@ svir = { version = "0.1.2", default-features = false, features = ["client", "tls
 
 ## Версии {/* #versions */}
 
-Этот сайт описывает svir **0.1.2**. В пределах 0.1 более поздние релизы
+Этот сайт описывает svir **0.1.3**. В пределах 0.1 более поздние релизы
 ставятся без изменений кода; чего нет в более ранних:
 
 | Зафиксирована | Чего нет |
 |---|---|
 | 0.1.0 | `Error::status()`, фичи `tls-aws-lc`, лимита по умолчанию в 64 МиБ (был 4 МиБ) и исправления для inline-тегов `<think>`, разрезанных между дельтами |
 | 0.1.1 | `FinishReason::ContentFilter` (отфильтрованный ответ был `Unsupported`) и потоков Azure OpenAI в строгом режиме |
+| 0.1.2 | `ErrorKind::ContentFilter` (заблокированный промпт был `Unsupported` и отправлялся дважды) и чтения асинхронного контент-фильтра Azure (его аннотации были `Unsupported`) |
 
 Подробности — в
 [журнале изменений](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md).

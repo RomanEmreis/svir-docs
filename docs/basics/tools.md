@@ -73,7 +73,7 @@ argument type, doc comments included.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.2", features = ["schemars"] }
+svir = { version = "0.1.3", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```

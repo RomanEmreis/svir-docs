@@ -95,13 +95,21 @@ fn describe(done: &Completion) -> &'static str {
         // The output limit cut it off. With a reasoning model the text can be
         // empty: the reasoning used the budget. Raise `max_tokens`.
         FinishReason::Length => "the answer was cut off",
-        // The server's content filter stopped it. `done.text` holds what came
-        // before; tell the user why it ends there.
+        // The server's content filter stopped it, or flagged it after it was
+        // streamed. `done.text` holds what was sent, which may be what was
+        // flagged: withdraw what the user was shown.
         FinishReason::ContentFilter => "the answer was filtered",
         _ => "a finish reason this code does not know yet",
     }
 }
 ```
+
+A `ContentFilter` finish can come after the whole answer. Azure OpenAI's
+asynchronous content filter streams the answer before vetting it and reports a
+block afterwards, even after the model's own `stop`; svir makes that the
+finish. Text before a block may hold what was blocked in Azure's default mode
+too. So code that shows the deltas as they arrive takes the text down on this
+finish, rather than leaving it up with a note.
 
 The text is what the server sent. A server that separates reasoning often
 starts the answer with blank lines: trim for display, store as is.

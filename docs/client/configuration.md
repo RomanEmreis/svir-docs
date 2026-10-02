@@ -126,6 +126,7 @@ What to know about it:
 
 - On such a server `Completion::usage` is `None` (usage is asked for through
   `stream_options`), and the reasoning effort is not applied.
-- A rejection that says the context overflowed is reported as it is, without
-  the second attempt.
+- Only a rejection whose body does not explain it gets the second attempt. A
+  context overflow or a prompt the content filter blocked is reported as it
+  is: sent again, a blocked prompt would be billed again.
 - If the second attempt fails too, the original error is reported.
