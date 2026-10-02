@@ -19,7 +19,7 @@ svir — маленький компонуемый Rust SDK для общени�
 svir находится в стадии preview. Публичный API ещё может меняться между
 релизами `0.x`. Что изменилось — в
 [журнале изменений](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md).
-Этот сайт описывает **svir 0.1.2**.
+Этот сайт описывает **svir 0.1.3**.
 :::
 
 ## Установка {/* #install */}
@@ -36,7 +36,7 @@ cargo add tokio --features macros,rt-multi-thread
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = "0.1.2"
+svir = "0.1.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

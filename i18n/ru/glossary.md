@@ -23,6 +23,8 @@
 | reasoning effort | глубина рассуждений | `Effort` |
 | usage | расход токенов | `Usage` |
 | finish reason | причина завершения | `FinishReason` |
+| content filter | контент-фильтр | `ErrorKind::ContentFilter`, `FinishReason::ContentFilter` |
+| annotation | аннотация | Вердикт асинхронного контент-фильтра Azure по уже отправленному тексту |
 | tool | инструмент | Функция, которую модель может вызвать |
 | tool call | вызов инструмента | `ToolCall` |
 | tool result | результат инструмента | `ToolResult` |

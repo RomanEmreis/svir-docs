@@ -38,8 +38,18 @@ Both modes enforce the [limits](#limits), fail a stream that ends early, and
 refuse tool calls that are inconsistent: missing or duplicate IDs, a gap in
 the indices, or a finish reason that disagrees with the calls.
 
-A prompt report (a chunk with no choices and `prompt_filter_results`, as Azure
-OpenAI sends first) carries nothing of the answer and is skipped in both modes.
+Azure OpenAI's content filter sends chunks that carry nothing of the answer,
+and both modes read them the same way:
+
+- A prompt report (a chunk with no choices and `prompt_filter_results`, sent
+  first) is skipped.
+- An annotation from the asynchronous content filter (a choice with
+  `content_filter_offsets` and no delta) is a verdict on text already
+  streamed. One that blocks nothing is skipped, before the finish reason or
+  after it. A block, a `content_filter` finish or a verdict marked
+  `filtered: true`, makes the answer's finish `ContentFilter`, even after the
+  model's own `stop`. Any other finish reason in an annotation is
+  `Unsupported`.
 
 ### Which to choose
 

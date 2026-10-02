@@ -95,13 +95,21 @@ fn describe(done: &Completion) -> &'static str {
         // The output limit cut it off. With a reasoning model the text can be
         // empty: the reasoning used the budget. Raise `max_tokens`.
         FinishReason::Length => "the answer was cut off",
-        // The server's content filter stopped it. `done.text` holds what came
-        // before; tell the user why it ends there.
+        // The server's content filter stopped it, or flagged it after it was
+        // streamed. `done.text` holds what was sent, which may be what was
+        // flagged: withdraw what the user was shown.
         FinishReason::ContentFilter => "the answer was filtered",
         _ => "a finish reason this code does not know yet",
     }
 }
 ```
+
+Завершение `ContentFilter` может прийти уже после всего ответа. Асинхронный
+контент-фильтр Azure OpenAI отдаёт ответ до проверки и сообщает о блокировке
+позже, даже после `stop` самой модели; svir делает это причиной завершения.
+Текст перед блокировкой может содержать заблокированное и в обычном режиме
+Azure. Поэтому код, который показывает дельты по мере прихода, при такой
+причине завершения убирает текст, а не оставляет его с пометкой.
 
 Текст — ровно то, что прислал сервер. Сервер, который отделяет рассуждения,
 часто начинает ответ с пустых строк: обрезайте их при показе, а храните как

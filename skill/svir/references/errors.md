@@ -39,6 +39,7 @@ API key, the request URL, headers, or the server's message.
 | `TruncatedStream` | yes | The stream ended before the answer was complete | Send the request again if the partial answer can be discarded |
 | `Authentication` | no | HTTP 401, 403 | Fix the key |
 | `ContextOverflow` | no | The request does not fit in the model's context | Shorten the conversation, or drop attachments |
+| `ContentFilter` | no | The server's content filter blocked the prompt | Change the prompt: the same one is blocked again, and billed again |
 | `Server` | no | The server reported a failure inside the stream | Read `server_message()`; the server's logs say more |
 | `Protocol` | no | A malformed or inconsistent response | Report it, with the raw stream |
 | `Unsupported` | no | Something svir cannot represent; an unexpected status; a response that is not an event stream | See the table below |
@@ -46,7 +47,10 @@ API key, the request URL, headers, or the server's message.
 | `Attachment` | no | A file could not be read, is not what it claims, or changed | Fix the file or its media type |
 | `Config` | no | The URL or the key source is not acceptable | Fix the builder call |
 
-`ErrorKind` is `#[non_exhaustive]`: a `match` needs a wildcard arm.
+`ErrorKind` is `#[non_exhaustive]`: a `match` needs a wildcard arm. A blocked
+prompt is recognized by the error's code alone, `content_filter`, as Azure
+OpenAI sends it with a 400. An answer the filter stops is not an error but
+`FinishReason::ContentFilter`; see `streaming.md`.
 
 ## Handling them
 
@@ -125,7 +129,7 @@ fn explain(error: &Error) -> String {
 | `Unsupported`: "the response is not an event stream" | A success status with HTML or JSON: a gateway page, or an endpoint that ignores `stream` |
 | `Unsupported`: "a delta field outside the protocol", or a similar "outside the protocol" | Strict decoding met a field svir does not know. Read what the server sends (`cargo run --example relay` in the svir repository); `.lenient()` skips such fields |
 | `Unsupported`: "a finish reason outside the protocol" | The server stopped for a reason svir does not know (a filtered answer is `FinishReason::ContentFilter`, not this). The answer may not be what it looks like; lenient mode does not change this |
-| `Unsupported`, detail "HTTP 400", `server_message()` "The response was filtered" | Azure OpenAI's content filter blocked the prompt. Nothing was generated; the prompt has to change |
+| `ContentFilter`, detail "HTTP 400" | Azure OpenAI's content filter blocked the prompt. Nothing was generated, but the evaluation was billed: change the prompt rather than send it again |
 | `Unsupported`, detail "HTTP 400" or "HTTP 422" | The server rejected the request. Read `server_message()`. Common: a model without tool or image support, or a message the server's chat template cannot take |
 | `Timeout`: "the server sent no response" or "the response stalled" | Silence for longer than the idle timeout (5 min by default). A local model on a long prompt can take longer; raise `idle_timeout` |
 | `Timeout` from a `Timeout::first_token` layer on a local model | The deadline is shorter than the model needs to read the prompt |
@@ -141,6 +145,7 @@ fn explain(error: &Error) -> String {
 | `done.text` starts with blank lines | The server left them after the reasoning. Trim for display |
 | `done.text` is empty and `finish` is `Length` | Reasoning used the whole output budget. Raise `max_tokens`, or lower the effort |
 | `done.text` is empty and `finish` is `ToolCalls` | Not a failure: the model is waiting for tool results |
+| `finish` is `ContentFilter`, though the whole answer streamed | Azure's asynchronous content filter vets the answer after streaming it, and blocked part of it. Withdraw the text the user was shown |
 | The model never calls a tool | The model has no tool support, or the description does not say when to use the tool |
 | The next request after a tool call is rejected | The assistant turn or a result is missing: `request.assistant(done).tool_results(results)` |
 | The same answer, whatever model is named | Some local servers answer with the loaded model when they do not know the ID. List the models |

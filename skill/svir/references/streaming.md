@@ -67,13 +67,21 @@ fn describe(done: &Completion) -> &'static str {
         // The output limit cut it off. With a reasoning model the text can be
         // empty: the reasoning used the budget. Raise `max_tokens`.
         FinishReason::Length => "the answer was cut off",
-        // The server's content filter stopped it. `done.text` holds what came
-        // before; tell the user why it ends there.
+        // The server's content filter stopped it, or flagged it after it was
+        // streamed. `done.text` holds what was sent, which may be what was
+        // flagged: withdraw what the user was shown.
         FinishReason::ContentFilter => "the answer was filtered",
         _ => "a finish reason this code does not know yet",
     }
 }
 ```
+
+A `ContentFilter` finish can come after the whole answer: Azure OpenAI's
+asynchronous content filter streams the answer before vetting it, and reports
+a block afterwards, even after the model's own `stop`. Text before a block may
+hold what was blocked in Azure's default mode too. Code that shows the deltas
+as they arrive takes the text down on this finish; leaving it up with a note
+keeps showing what the filter blocked.
 
 ## Streaming and keeping the answer
 
@@ -200,6 +208,13 @@ make the answer wrong.
 Both modes enforce the limits, fail a stream that ends early, and refuse
 tool calls that are inconsistent (missing or duplicate IDs, a gap in the
 indices, a finish reason that disagrees with the calls).
+
+Azure OpenAI's prompt report (no choices, `prompt_filter_results`) and the
+annotations of its asynchronous content filter (`content_filter_offsets`, no
+delta) carry nothing of the answer and are skipped in both modes. An
+annotation that blocks, by a `content_filter` finish or a verdict marked
+`filtered: true`, makes the finish `ContentFilter`, even after the model's
+`stop`.
 
 Choose strict for a server under your control, and to find out what a new
 server actually sends. Choose lenient for a server with extensions you do

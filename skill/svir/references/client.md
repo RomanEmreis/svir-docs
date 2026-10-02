@@ -255,8 +255,10 @@ not a retry in the sense above, and it needs no configuration.
 The consequence to know: on such a server `Completion::usage` is `None`, and
 the reasoning effort is not applied.
 
-A rejection that says the context overflowed is reported as it is, without
-the second attempt.
+Only a rejection whose body does not explain it gets the second attempt. A
+context overflow (`ContextOverflow`) or a prompt the content filter blocked
+(`ContentFilter`) is reported as it is: sent again, a blocked prompt would be
+billed again.
 
 ## TLS and the crypto provider
 
@@ -277,7 +279,7 @@ build already has:
 
 ```toml
 [dependencies]
-svir = { version = "0.1.1", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.3", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 The other fix is in the code that relies on the default: pass a provider
