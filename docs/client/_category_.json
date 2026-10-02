@@ -1,0 +1,9 @@
+{
+  "label": "Client",
+  "position": 3,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "Configuring the client: the server, keys, timeouts, layers, TLS, a custom HTTP backend, and tests without a server."
+  }
+}

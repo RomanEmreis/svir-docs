@@ -1,0 +1,411 @@
+/**
+ * The landing page. The hero is dark in both themes: black and graphite,
+ * lit with ultramarine.
+ */
+
+/* ---- Hero ------------------------------------------------------------ */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 5.5rem 0 5rem;
+  text-align: center;
+  color: #f1f2f6;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #161a4d 0%, rgba(22, 26, 77, 0) 60%),
+    linear-gradient(180deg, #0b0c10 0%, #101218 70%, #14161c 100%);
+  border-bottom: 1px solid #1d2027;
+}
+
+[data-theme='dark'] .hero {
+  background:
+    radial-gradient(120% 90% at 50% 0%, #12153e 0%, rgba(18, 21, 62, 0) 60%),
+    linear-gradient(180deg, #08090c 0%, #0c0d11 70%, #0e1014 100%);
+}
+
+@media screen and (max-width: 996px) {
+  .hero {
+    padding: 3.5rem 0 3.5rem;
+  }
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* A faint grid, fading out from the middle. */
+.grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: center top;
+  -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 40%, #000 0%, transparent 80%);
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 40%, #000 0%, transparent 80%);
+}
+
+/* Ultramarine light behind the logo. */
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 640px;
+  height: 640px;
+  max-width: 120vw;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(70, 82, 228, 0.42) 0%,
+    rgba(47, 60, 224, 0.16) 38%,
+    rgba(47, 60, 224, 0) 70%
+  );
+  filter: blur(6px);
+}
+
+.streams {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 12%;
+  width: 100%;
+  height: 70%;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%);
+}
+
+/* Dotted lines: round caps on zero-length dashes draw dots. */
+.stream {
+  fill: none;
+  stroke: #6f7bff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 0 18;
+  opacity: 0.38;
+  vector-effect: non-scaling-stroke;
+  animation: flow 3.2s linear infinite;
+}
+
+.streamSlow {
+  opacity: 0.22;
+  animation-duration: 5.4s;
+}
+
+.streamFaint {
+  stroke: #9aa3ff;
+  opacity: 0.14;
+  animation-duration: 7s;
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  margin: 0 0 1.5rem;
+  line-height: 0;
+}
+
+.logo {
+  width: auto;
+  height: 220px;
+  filter: drop-shadow(0 8px 32px rgba(47, 60, 224, 0.35));
+}
+
+@media screen and (max-width: 600px) {
+  .logo {
+    height: 160px;
+  }
+}
+
+/* The three dots of the logo, pulsing in turn like an answer arriving.
+   svgr prefixes the class names in the SVG, hence the substring match. */
+.logo [class*='svir-dot'] circle {
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+.logo [class*='svir-dot'] circle:nth-child(2) {
+  animation-delay: 0.22s;
+}
+
+.logo [class*='svir-dot'] circle:nth-child(3) {
+  animation-delay: 0.44s;
+}
+
+@keyframes pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream,
+  .logo [class*='svir-dot'] circle {
+    animation: none;
+  }
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tagline {
+  text-wrap: balance;
+  font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  margin: 0 auto 0.75rem;
+  max-width: 40rem;
+  color: #f4f5f8;
+}
+
+.lede {
+  font-size: 1.05rem;
+  color: #a6abba;
+  margin: 0 auto 2rem;
+  max-width: 34rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+
+.primaryButton {
+  background: #2f3ce0;
+  border-color: #2f3ce0;
+  color: #fff;
+  box-shadow: 0 6px 24px rgba(47, 60, 224, 0.4);
+}
+
+.primaryButton:hover {
+  background: #4652e4;
+  border-color: #4652e4;
+  color: #fff;
+}
+
+.ghostButton {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #e6e8ef;
+}
+
+.ghostButton:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.install {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.6rem 0.5rem 0.95rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 9, 12, 0.6);
+  color: #e6e8ef;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.install:hover {
+  border-color: rgba(127, 138, 255, 0.55);
+}
+
+.install code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.95rem;
+}
+
+.prompt {
+  color: #7f8aff;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.copyState {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a8fa0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.06);
+  min-width: 3.6rem;
+}
+
+/* ---- Works with ------------------------------------------------------ */
+
+.worksWith {
+  padding: 2.25rem 0 0.5rem;
+  text-align: center;
+}
+
+.worksWithLabel {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.9rem;
+}
+
+.servers {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.servers li {
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--svir-border);
+  background: var(--svir-surface);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* ---- Examples -------------------------------------------------------- */
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  width: 100%;
+  max-width: var(--ifm-container-width);
+  padding: 1rem var(--ifm-spacing-horizontal) 2rem;
+}
+
+.example {
+  display: flex;
+  gap: 3.5rem;
+  padding: 3.5rem 0;
+  align-items: center;
+  border-top: 1px solid var(--svir-border);
+}
+
+.example:first-child {
+  border-top: none;
+}
+
+.example.reverse {
+  flex-direction: row-reverse;
+}
+
+.description {
+  flex: 0 0 40%;
+  max-width: 40%;
+}
+
+.description h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.description p {
+  color: var(--ifm-color-emphasis-800);
+  font-size: 1.02rem;
+}
+
+.step {
+  display: inline-block;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.more {
+  font-weight: 600;
+}
+
+.code {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.code :global(.theme-code-block) {
+  margin-bottom: 0;
+  font-size: 0.8rem;
+}
+
+@media screen and (min-width: 1440px) {
+  .examples {
+    max-width: var(--ifm-container-width-xl);
+  }
+}
+
+@media screen and (max-width: 996px) {
+  .example,
+  .example.reverse {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    padding: 2.5rem 0;
+  }
+
+  .description {
+    flex: none;
+    max-width: 100%;
+  }
+}
+
+/* ---- The name -------------------------------------------------------- */
+
+.name {
+  padding: 3.5rem 0 4.5rem;
+  border-top: 1px solid var(--svir-border);
+  background: var(--svir-surface);
+  text-align: center;
+}
+
+.name h2 {
+  font-size: 1.4rem;
+}
+
+.name p {
+  max-width: 44rem;
+  margin: 0 auto;
+  color: var(--ifm-color-emphasis-800);
+}

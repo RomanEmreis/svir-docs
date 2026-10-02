@@ -1,0 +1,164 @@
+# Errors and troubleshooting
+
+One error type, a kind to act on, and what each symptom usually means.
+
+## Contents
+
+- [The error](#the-error)
+- [Kinds](#kinds)
+- [Handling them](#handling-them)
+- [The server's own message](#the-servers-own-message)
+- [Symptom to cause: at runtime](#symptom-to-cause-at-runtime)
+- [Symptom to cause: at compile time](#symptom-to-cause-at-compile-time)
+
+## The error
+
+Every fallible call returns `svir::Error`.
+
+| Accessor | Gives |
+|---|---|
+| `kind()` | An `ErrorKind`: what went wrong, in terms code can act on |
+| `is_retryable()` | Whether the same request can succeed later |
+| `retry_after()` | How long the server asked to wait, if it said (capped at 30 s) |
+| `is_unsent()` | The request never reached the server: the connection could not be made |
+| `status()` | The HTTP status of a response that was not a success; `None` for any other failure |
+| `detail()` | A short description written by svir |
+| `server_message()` | The server's own words, if it sent any |
+| `source()` | The underlying error, through `std::error::Error` |
+
+`Display` is the kind's description and the detail. It never contains the
+API key, the request URL, headers, or the server's message.
+
+## Kinds
+
+| Kind | Retryable | Raised for | What to do |
+|---|---|---|---|
+| `Transport` | yes | The server could not be reached; HTTP 500, 502, 503 | Check that the server runs; retry with backoff |
+| `Timeout` | yes | A connect, idle, or layer deadline passed; HTTP 408, 504 | Retry, or raise the deadline for a slow local model |
+| `RateLimited` | yes | HTTP 429 | Wait `retry_after()` if present, then retry |
+| `TruncatedStream` | yes | The stream ended before the answer was complete | Send the request again if the partial answer can be discarded |
+| `Authentication` | no | HTTP 401, 403 | Fix the key |
+| `ContextOverflow` | no | The request does not fit in the model's context | Shorten the conversation, or drop attachments |
+| `Server` | no | The server reported a failure inside the stream | Read `server_message()`; the server's logs say more |
+| `Protocol` | no | A malformed or inconsistent response | Report it, with the raw stream |
+| `Unsupported` | no | Something svir cannot represent; an unexpected status; a response that is not an event stream | See the table below |
+| `ResponseLimit` | no | The response passed a configured limit | Raise `Limits` on purpose |
+| `Attachment` | no | A file could not be read, is not what it claims, or changed | Fix the file or its media type |
+| `Config` | no | The URL or the key source is not acceptable | Fix the builder call |
+
+`ErrorKind` is `#[non_exhaustive]`: a `match` needs a wildcard arm.
+
+## Handling them
+
+```rust
+use svir::prelude::*;
+
+enum Next {
+    Answer(Completion),
+    RetryAfter(std::time::Duration),
+    Shorten,
+    GiveUp(String),
+}
+
+async fn ask(client: &Client, request: &Request) -> Next {
+    let error = match client.complete(request).await {
+        Ok(done) => return Next::Answer(done),
+        Err(error) => error,
+    };
+
+    match error.kind() {
+        ErrorKind::ContextOverflow => Next::Shorten,
+        ErrorKind::RateLimited => {
+            Next::RetryAfter(error.retry_after().unwrap_or(std::time::Duration::from_secs(5)))
+        }
+        _ if error.is_retryable() => Next::RetryAfter(std::time::Duration::from_secs(1)),
+        // `Display` is safe to log and to show.
+        _ => Next::GiveUp(error.to_string()),
+    }
+}
+```
+
+* Match on the kind, never on the text of `Display` or `detail()`: the text
+  can change between releases, the kinds are part of the API.
+* `complete` either returns the whole answer or an error; a retry there is
+  clean. With `stream`, a failure after the first event means the caller has
+  shown part of an answer: retrying is a product decision, not a default.
+* For retries before the response starts, prefer the `Retry` layer to a
+  hand-written loop; see `client.md`.
+* A proxy that wants to answer with the upstream's status reads
+  `error.status()`. It is `None` for a timeout or a failure inside a stream,
+  where the proxy has to pick a status of its own (502, 504).
+
+## The server's own message
+
+`error.server_message()` is what the server said: an `error.message` from a
+JSON body, a plain-text body, or a message inside the stream. It is cut to
+4 KiB.
+
+It is kept out of `Display` and `Debug` on purpose. A server's message can
+quote the prompt, a file name, or an internal address, and those do not
+belong in logs. Show it to the person who made the request; log
+`error.to_string()`.
+
+```rust
+use svir::prelude::*;
+
+fn explain(error: &Error) -> String {
+    match error.server_message() {
+        Some(said) => format!("{error} (the server said: {said})"),
+        None => error.to_string(),
+    }
+}
+```
+
+## Symptom to cause: at runtime
+
+| Symptom | Usual cause |
+|---|---|
+| `Config` from `build()`: "plain HTTP to a host that is not loopback" | The URL is `http://` to another machine. Use `https://`, or `.allow_http()` for a trusted network |
+| `Config`: "an https URL needs the `tls` or the `tls-aws-lc` feature" | `default-features = false` without either |
+| A panic elsewhere: "no process-level CryptoProvider available" | Two rustls providers are compiled in: svir's `tls` brought ring next to another crate's aws-lc-rs. Take svir with `tls-aws-lc` instead of `tls`; see `client.md` |
+| `Config`: "the API key variable ... is not set" | `api_key_env` names a variable the process does not have. svir reads no `.env` file |
+| `Config`: "http() must be called before layers are added" | Move `.http(backend)` above `.layer(..)` and `.wrap(..)` |
+| `Transport`, `is_unsent()` true | Nothing listens at the URL: the server is not running, or the port is wrong |
+| `Unsupported`, detail "HTTP 404" | The base URL points somewhere that is not the API (a path too many, a web UI), or the server does not know the model. `server_message()` usually says which |
+| `Unsupported`: "the response is not an event stream" | A success status with HTML or JSON: a gateway page, or an endpoint that ignores `stream` |
+| `Unsupported`: "a delta field outside the protocol", or a similar "outside the protocol" | Strict decoding met a field svir does not know. Read what the server sends (`cargo run --example relay` in the svir repository); `.lenient()` skips such fields |
+| `Unsupported`: "a finish reason outside the protocol" | The server stopped for a reason svir does not know (a filtered answer is `FinishReason::ContentFilter`, not this). The answer may not be what it looks like; lenient mode does not change this |
+| `Unsupported`, detail "HTTP 400", `server_message()` "The response was filtered" | Azure OpenAI's content filter blocked the prompt. Nothing was generated; the prompt has to change |
+| `Unsupported`, detail "HTTP 400" or "HTTP 422" | The server rejected the request. Read `server_message()`. Common: a model without tool or image support, or a message the server's chat template cannot take |
+| `Timeout`: "the server sent no response" or "the response stalled" | Silence for longer than the idle timeout (5 min by default). A local model on a long prompt can take longer; raise `idle_timeout` |
+| `Timeout` from a `Timeout::first_token` layer on a local model | The deadline is shorter than the model needs to read the prompt |
+| `TruncatedStream` | The connection was cut: a gateway's own timeout, a server that crashed or was unloaded |
+| `ContextOverflow` before anything was sent | `context_tokens` is set and the body's bytes plus `max_tokens` exceed it. Bytes overestimate images by far |
+| `ContextOverflow` from the server | The conversation outgrew the context. Some servers say it inside a `200` stream; svir reports both the same way |
+| `Attachment`: "an image has no media type" | An extension other than `png`, `jpg`, `jpeg`, `gif`, `webp`. Add `.media_type(..)` |
+| `Attachment`: "a text file is not UTF-8" | `TextFile` is for text. Send an image as `Image`; convert anything else first |
+| "stream did not contain valid UTF-8", an `std::io::Error` | Not svir: the program's own input. In a terminal without `iutf8` (`stty -a`), Backspace over a non-ASCII letter erases one byte and leaves half of it. Read bytes and check them, or `stty iutf8`. A server that sends bytes that are not text is `Protocol`: "an event is not valid UTF-8" |
+| `Attachment`: "an attachment changed after the body was built" | The file was written to between measuring and sending |
+| `ResponseLimit` | A response over 64 MiB, an event over 256 KiB, or more than 64 tool calls. Raise `Limits` if that is expected |
+| `done.usage` is `None` | The server does not report usage, or it rejected the field and the client stopped asking |
+| `done.text` starts with blank lines | The server left them after the reasoning. Trim for display |
+| `done.text` is empty and `finish` is `Length` | Reasoning used the whole output budget. Raise `max_tokens`, or lower the effort |
+| `done.text` is empty and `finish` is `ToolCalls` | Not a failure: the model is waiting for tool results |
+| The model never calls a tool | The model has no tool support, or the description does not say when to use the tool |
+| The next request after a tool call is rejected | The assistant turn or a result is missing: `request.assistant(done).tool_results(results)` |
+| The same answer, whatever model is named | Some local servers answer with the loaded model when they do not know the ID. List the models |
+| A request for one model is slow once, then fast | A local server loaded the model on the first request |
+
+## Symptom to cause: at compile time
+
+| The compiler says | Cause |
+|---|---|
+| No variant `System` on `Role` | The system prompt is `Request::system(..)` |
+| Cannot create a non-exhaustive struct with a struct expression | Use the constructor: `Request::new`, `Tool::new`, `ToolResult::new`, `Usage::new` |
+| Non-exhaustive patterns on `Event`, `ErrorKind`, `FinishReason`, `Part` | Add a wildcard arm |
+| Use of moved value: `request` | The builder takes `self`. Write `request = request.user(..)`, and pass `&request` to `complete` and `stream` |
+| No method `add` on `Tools` | Enable svir's `schemars` feature, or use `add_tool` with a schema |
+| The trait `JsonSchema` is not implemented | The caller's `schemars` is not version 1, so its derive is a different trait |
+| Cannot find `Trace` in `svir::layer` | Enable the `tracing` feature |
+| Cannot find `Client` in `svir` | `default-features = false` turned the `client` feature off |
+| `Layer`, `Next`, `Retry`, or `Decoder` not found | They are not in the prelude: `svir::layer::..`, `svir::openai::chat::..` |
+| Mismatched types: expected `Client<..>`, found `Client` | A client with a custom backend is `Client<Backend>`; name the type, or make the function generic over `B: svir::http::Backend` |
+| A future is not `Send`, in a `Layer` or `Toolbox` impl | Something that is not `Send` (an `Rc`, a `std::sync::MutexGuard`) is held across an `.await` |
+| Expected `ToolResult`, found `Result<..>` in `Toolbox::call` | `call` returns a result for the model, never an error: turn the failure into content |

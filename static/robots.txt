@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://romanemreis.github.io/svir-docs/sitemap.xml

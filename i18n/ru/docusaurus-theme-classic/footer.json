@@ -1,0 +1,58 @@
+{
+  "link.title.Docs": {
+    "message": "Документация",
+    "description": "The title of the footer links column with title=Docs in the footer"
+  },
+  "link.title.Crate": {
+    "message": "Крейт",
+    "description": "The title of the footer links column with title=Crate in the footer"
+  },
+  "link.title.The family": {
+    "message": "Семья",
+    "description": "The title of the footer links column with title=The family in the footer"
+  },
+  "link.item.label.Getting started": {
+    "message": "Начало работы",
+    "description": "The label of footer link with label=Getting started linking to /docs/intro"
+  },
+  "link.item.label.Tools": {
+    "message": "Инструменты",
+    "description": "The label of footer link with label=Tools linking to /docs/basics/tools"
+  },
+  "link.item.label.Layers": {
+    "message": "Слои",
+    "description": "The label of footer link with label=Layers linking to /docs/client/layers"
+  },
+  "link.item.label.Agent Skill": {
+    "message": "Agent Skill",
+    "description": "The label of footer link with label=Agent Skill linking to /docs/agent-skill"
+  },
+  "link.item.label.crates.io": {
+    "message": "crates.io",
+    "description": "The label of footer link with label=crates.io linking to https://crates.io/crates/svir"
+  },
+  "link.item.label.API reference": {
+    "message": "Справочник API",
+    "description": "The label of footer link with label=API reference linking to https://docs.rs/svir/latest/svir/"
+  },
+  "link.item.label.Changelog": {
+    "message": "Журнал изменений",
+    "description": "The label of footer link with label=Changelog linking to https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md"
+  },
+  "link.item.label.Examples": {
+    "message": "Примеры",
+    "description": "The label of footer link with label=Examples linking to https://github.com/RomanEmreis/svir/tree/main/examples"
+  },
+  "link.item.label.volga - HTTP": {
+    "message": "volga — HTTP",
+    "description": "The label of footer link with label=volga - HTTP linking to https://github.com/RomanEmreis/volga"
+  },
+  "link.item.label.neva - MCP": {
+    "message": "neva — MCP",
+    "description": "The label of footer link with label=neva - MCP linking to https://romanemreis.github.io/neva-docs/"
+  },
+  "link.item.label.svir - LLMs": {
+    "message": "svir — LLM",
+    "description": "The label of footer link with label=svir - LLMs linking to https://github.com/RomanEmreis/svir"
+  }
+}
