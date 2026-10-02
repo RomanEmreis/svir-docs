@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The site build doubles as the link checker: docusaurus.config.ts sets
+  # `onBrokenLinks` and `onBrokenAnchors` to 'throw', so a dangling internal
+  # link fails here rather than on the deploy that runs after merge.
+  build:
+    name: Build site
+    # On main, deploy.yml already builds before publishing. This job exists to
+    # gate pull requests.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # What the build lets through: unparsed admonitions, translations whose
+      # anchors or code drifted from the English pages.
+      - run: python3 ci/check-site.py
+
+  # Every Rust snippet on the site and in the Agent Skill is compiled against
+  # the published svir crate. See ci/check-snippets.py for the conventions.
+  snippets:
+    name: Compile Rust snippets
+    runs-on: ubuntu-latest
+    env:
+      # bump alongside the version the docs describe
+      SVIR_VERSION: "0.1.2"
+      # The generated crates live in a temp dir outside the repo, so point
+      # cargo at a fixed path we can actually cache.
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.snippet-target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry and snippet target dir
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ env.CARGO_TARGET_DIR }}
+          # No Cargo.lock to key on: the inputs are the svir version and the
+          # generator itself.
+          key: snippets-${{ runner.os }}-svir${{ env.SVIR_VERSION }}-${{ hashFiles('ci/check-snippets.py') }}
+          restore-keys: |
+            snippets-${{ runner.os }}-svir${{ env.SVIR_VERSION }}-
+      - name: docs/
+        run: python3 ci/check-snippets.py --docs-dir docs
+      - name: The landing page's examples
+        run: python3 ci/check-snippets.py --docs-dir src/pages/examples
+      - name: skill/
+        run: python3 ci/check-snippets.py --docs-dir skill
+
+  # The skill ships as a zip built at site-build time; make sure it packages.
+  skill-package:
+    name: Package the Agent Skill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 ci/build-skill.py

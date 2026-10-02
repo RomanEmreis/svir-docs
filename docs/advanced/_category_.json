@@ -1,0 +1,8 @@
+{
+  "label": "Advanced",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Strict and lenient decoding, relaying a stream through a proxy, and the codec on its own."
+  }
+}

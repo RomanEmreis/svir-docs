@@ -1,0 +1,30 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.docsSidebar.category.Basics": {
+    "message": "Основы",
+    "description": "The label for category 'Basics' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Basics.link.generated-index.description": {
+    "message": "Запрос, чтение ответа, диалог и инструменты для модели.",
+    "description": "The generated-index page description for category 'Basics' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Client": {
+    "message": "Клиент",
+    "description": "The label for category 'Client' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Client.link.generated-index.description": {
+    "message": "Настройка клиента: сервер, ключи, таймауты, слои, TLS, собственный HTTP-бэкенд и тесты без сервера.",
+    "description": "The generated-index page description for category 'Client' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Advanced": {
+    "message": "Продвинутое",
+    "description": "The label for category 'Advanced' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Advanced.link.generated-index.description": {
+    "message": "Строгий и мягкий разбор ответа, ретрансляция потока через прокси и кодек сам по себе.",
+    "description": "The generated-index page description for category 'Advanced' in sidebar 'docsSidebar'"
+  }
+}

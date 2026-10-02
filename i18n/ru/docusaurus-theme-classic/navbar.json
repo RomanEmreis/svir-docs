@@ -1,0 +1,30 @@
+{
+  "title": {
+    "message": "svir",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "Логотип svir",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Docs": {
+    "message": "Документация",
+    "description": "Navbar item with label Docs"
+  },
+  "item.label.Skill": {
+    "message": "Skill",
+    "description": "Navbar item with label Skill"
+  },
+  "item.label.API": {
+    "message": "API",
+    "description": "Navbar item with label API"
+  },
+  "item.label.crates.io": {
+    "message": "crates.io",
+    "description": "Navbar item with label crates.io"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

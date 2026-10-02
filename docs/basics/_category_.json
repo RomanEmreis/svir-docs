@@ -1,0 +1,9 @@
+{
+  "label": "Basics",
+  "position": 2,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "Building a request, reading the answer, keeping a conversation, and giving a model tools."
+  }
+}
