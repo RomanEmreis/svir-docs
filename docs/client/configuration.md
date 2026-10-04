@@ -1,14 +1,14 @@
 ---
 sidebar_position: 1
 title: Configuration
-description: The client builder, base URLs, API keys, timeouts, listing models, and compatibility handling.
+description: The client builder, base URLs, API keys, extra headers, timeouts, listing models, and compatibility handling.
 ---
 
 # Configuration
 
 `Client::openai(url)` returns a `ClientBuilder`. Every method takes `self` and
-returns it, and `build()` returns `Result<Client, Error>`: the URL and the key
-source are checked there, not on the first request.
+returns it, and `build()` returns `Result<Client, Error>`: the URL, the key
+source, and the headers are checked there, not on the first request.
 
 ```rust
 use std::time::Duration;
@@ -29,6 +29,7 @@ fn client() -> Result<Client, Error> {
 | Method | Effect | Default |
 |---|---|---|
 | `api_key(key)` / `api_key_env(name)` / `api_key_file(path)` | Bearer authentication | None |
+| `header(name, value)` | A header sent with every request, for a gateway or a hosted endpoint | None |
 | `allow_http()` | Plain HTTP to a host that is not loopback | Refused |
 | `connect_timeout(d)` | How long connecting may take | 10 s |
 | `idle_timeout(d)` / `no_idle_timeout()` | How long the server may send nothing | 5 min |
@@ -42,7 +43,7 @@ fn client() -> Result<Client, Error> {
 
 **Build one `Client` per server and clone it.** Clones are cheap and share the
 connection pool and what was learned about the server. A client's `Debug` shows
-the URL and never the key.
+the URL and never the key or a header's value.
 
 Strictness and limits have a page of their own:
 [Strict decoding and limits](../advanced/strictness).
@@ -76,6 +77,43 @@ Loopback is `localhost`, `127.0.0.1`, and `[::1]`.
 key is sent as `Authorization: Bearer ...` and never appears in `Debug`,
 `Display`, errors, or events. A local server without authentication needs no
 key at all.
+
+## Extra headers
+
+A gateway or a hosted endpoint may ask for a header of its own: attribution,
+an organization or a project, or a key under a name other than
+`Authorization`. `header(name, value)` adds one to every request the client
+sends, the model listing included.
+
+```rust
+use svir::prelude::*;
+
+fn client() -> Result<Client, Error> {
+    Client::openai("https://gateway.example.com/v1")
+        .api_key_env("GATEWAY_KEY")
+        .header("x-title", "My App")
+        .build()
+}
+```
+
+- Names are not case-sensitive and are sent lowercase. Setting a name again
+  replaces the earlier value.
+- **Every value is treated as a credential**: it never appears in `Debug`, in
+  errors, or in events, and the built-in backend sends it marked sensitive.
+  An error names the header, never its value.
+- svir reads no environment variable for a header. For a value that lives
+  there, read it with `std::env::var(..)` and pass it.
+
+`build()` fails with `ErrorKind::Config` for:
+
+| The header | Why |
+|---|---|
+| A name that is not a header name (`"x title"`, `""`) | It cannot be sent |
+| A value with a line break, another control character, or text that is not ASCII | A line break would end the header and start another |
+| `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection` | svir writes these itself, or they frame the request. The Bearer key goes through `api_key` |
+
+The headers are the client's, the same on every request. There are no headers
+per request: a [layer](./layers) works above HTTP and cannot add one.
 
 ## Timeouts
 

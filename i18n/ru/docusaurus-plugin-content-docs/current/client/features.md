@@ -63,7 +63,7 @@ CryptoProvider available».
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.3", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.4", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 Другой способ — исправить код, который полагается на умолчание: передать
@@ -72,7 +72,7 @@ svir = { version = "0.1.3", default-features = false, features = ["client", "tls
 
 ## Версии {/* #versions */}
 
-Этот сайт описывает svir **0.1.3**. В пределах 0.1 более поздние релизы
+Этот сайт описывает svir **0.1.4**. В пределах 0.1 более поздние релизы
 ставятся без изменений кода; чего нет в более ранних:
 
 | Зафиксирована | Чего нет |
@@ -80,6 +80,11 @@ svir = { version = "0.1.3", default-features = false, features = ["client", "tls
 | 0.1.0 | `Error::status()`, фичи `tls-aws-lc`, лимита по умолчанию в 64 МиБ (был 4 МиБ) и исправления для inline-тегов `<think>`, разрезанных между дельтами |
 | 0.1.1 | `FinishReason::ContentFilter` (отфильтрованный ответ был `Unsupported`) и потоков Azure OpenAI в строгом режиме |
 | 0.1.2 | `ErrorKind::ContentFilter` (заблокированный промпт был `Unsupported` и отправлялся дважды) и чтения асинхронного контент-фильтра Azure (его аннотации были `Unsupported`) |
+| 0.1.3 | `ToolResult::error` и `is_error` (неудачный вызов был текстом `error: ` в содержимом), `ClientBuilder::header` и `TextFile::escaped_len` |
+
+Одно изменение в 0.1.4 может проявиться в коде, написанном для 0.1.3: сбой из
+`Tools` помечается флагом `is_error`, и его `content` больше не начинается с
+`error: `. Модель читает то же, что и раньше.
 
 Подробности — в
 [журнале изменений](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md).

@@ -45,7 +45,7 @@ API key, the request URL, headers, or the server's message.
 | `Unsupported` | no | Something svir cannot represent; an unexpected status; a response that is not an event stream | See the table below |
 | `ResponseLimit` | no | The response passed a configured limit | Raise `Limits` on purpose |
 | `Attachment` | no | A file could not be read, is not what it claims, or changed | Fix the file or its media type |
-| `Config` | no | The URL or the key source is not acceptable | Fix the builder call |
+| `Config` | no | The URL, the key source, or a header is not acceptable | Fix the builder call |
 
 `ErrorKind` is `#[non_exhaustive]`: a `match` needs a wildcard arm. A blocked
 prompt is recognized by the error's code alone, `content_filter`, as Azure
@@ -124,6 +124,9 @@ fn explain(error: &Error) -> String {
 | A panic elsewhere: "no process-level CryptoProvider available" | Two rustls providers are compiled in: svir's `tls` brought ring next to another crate's aws-lc-rs. Take svir with `tls-aws-lc` instead of `tls`; see `client.md` |
 | `Config`: "the API key variable ... is not set" | `api_key_env` names a variable the process does not have. svir reads no `.env` file |
 | `Config`: "http() must be called before layers are added" | Move `.http(backend)` above `.layer(..)` and `.wrap(..)` |
+| `Config`: "a header name is not valid" | A name given to `.header(..)` has a space or another character a header name cannot have |
+| `Config`: "the header ... is set by svir, not by the caller" | `.header(..)` named `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, or `connection`. The Bearer key goes through `api_key` |
+| `Config`: "the value of header ... is not valid" | The value has a line break, another control character, or text that is not ASCII. Often a value read from a file with its trailing newline: trim it |
 | `Transport`, `is_unsent()` true | Nothing listens at the URL: the server is not running, or the port is wrong |
 | `Unsupported`, detail "HTTP 404" | The base URL points somewhere that is not the API (a path too many, a web UI), or the server does not know the model. `server_message()` usually says which |
 | `Unsupported`: "the response is not an event stream" | A success status with HTML or JSON: a gateway page, or an endpoint that ignores `stream` |
@@ -139,7 +142,8 @@ fn explain(error: &Error) -> String {
 | `Attachment`: "an image has no media type" | An extension other than `png`, `jpg`, `jpeg`, `gif`, `webp`. Add `.media_type(..)` |
 | `Attachment`: "a text file is not UTF-8" | `TextFile` is for text. Send an image as `Image`; convert anything else first |
 | "stream did not contain valid UTF-8", an `std::io::Error` | Not svir: the program's own input. In a terminal without `iutf8` (`stty -a`), Backspace over a non-ASCII letter erases one byte and leaves half of it. Read bytes and check them, or `stty iutf8`. A server that sends bytes that are not text is `Protocol`: "an event is not valid UTF-8" |
-| `Attachment`: "an attachment changed after the body was built" | The file was written to between measuring and sending |
+| `Attachment`: "a text file is not the escaped length it declares" | `TextFile::escaped_len` declared a length the file cannot have, or one text in memory does not have. Measure the whole file with `svir::body::escaped_len` |
+| `Attachment`: "an attachment changed after the body was built, or is not the length it declares" | The file was written to between measuring and sending, or its declared `escaped_len` is wrong |
 | `ResponseLimit` | A response over 64 MiB, an event over 256 KiB, or more than 64 tool calls. Raise `Limits` if that is expected |
 | `done.usage` is `None` | The server does not report usage, or it rejected the field and the client stopped asking |
 | `done.text` starts with blank lines | The server left them after the reasoning. Trim for display |
@@ -156,7 +160,7 @@ fn explain(error: &Error) -> String {
 | The compiler says | Cause |
 |---|---|
 | No variant `System` on `Role` | The system prompt is `Request::system(..)` |
-| Cannot create a non-exhaustive struct with a struct expression | Use the constructor: `Request::new`, `Tool::new`, `ToolResult::new`, `Usage::new` |
+| Cannot create a non-exhaustive struct with a struct expression | Use the constructor: `Request::new`, `Tool::new`, `ToolResult::new`, `ToolResult::error`, `Usage::new` |
 | Non-exhaustive patterns on `Event`, `ErrorKind`, `FinishReason`, `Part` | Add a wildcard arm |
 | Use of moved value: `request` | The builder takes `self`. Write `request = request.user(..)`, and pass `&request` to `complete` and `stream` |
 | No method `add` on `Tools` | Enable svir's `schemars` feature, or use `add_tool` with a schema |
@@ -166,4 +170,4 @@ fn explain(error: &Error) -> String {
 | `Layer`, `Next`, `Retry`, or `Decoder` not found | They are not in the prelude: `svir::layer::..`, `svir::openai::chat::..` |
 | Mismatched types: expected `Client<..>`, found `Client` | A client with a custom backend is `Client<Backend>`; name the type, or make the function generic over `B: svir::http::Backend` |
 | A future is not `Send`, in a `Layer` or `Toolbox` impl | Something that is not `Send` (an `Rc`, a `std::sync::MutexGuard`) is held across an `.await` |
-| Expected `ToolResult`, found `Result<..>` in `Toolbox::call` | `call` returns a result for the model, never an error: turn the failure into content |
+| Expected `ToolResult`, found `Result<..>` in `Toolbox::call` | `call` returns a result for the model, never an error: turn the failure into `ToolResult::error(&call.id, message)` |

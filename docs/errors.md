@@ -39,7 +39,7 @@ key, the request URL, headers, or the server's message, so it is safe to log.
 | `Unsupported` | no | Something svir cannot represent; an unexpected status; a response that is not an event stream | See [Troubleshooting](./troubleshooting) |
 | `ResponseLimit` | no | The response passed a configured [limit](./advanced/strictness#limits) | Raise `Limits` on purpose |
 | `Attachment` | no | A file could not be read, is not what it claims, or changed | Fix the file or its media type |
-| `Config` | no | The URL or the key source is not acceptable | Fix the builder call |
+| `Config` | no | The URL, the key source, or a header is not acceptable | Fix the builder call |
 
 `ErrorKind` is `#[non_exhaustive]`: a `match` needs a wildcard arm. A context
 overflow is recognized by the error's code, type, or message, whether the

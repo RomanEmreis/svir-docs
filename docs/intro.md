@@ -18,7 +18,7 @@ LM Studio, llama.cpp, vLLM, mlx-lm, Azure OpenAI, and hosted endpoints.
 svir is in preview. The public API may still change between `0.x` releases.
 What changed is in the
 [changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md). This
-site describes **svir 0.1.3**.
+site describes **svir 0.1.4**.
 :::
 
 ## Install
@@ -35,7 +35,7 @@ Or by hand:
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = "0.1.3"
+svir = "0.1.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

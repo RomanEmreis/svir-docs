@@ -19,6 +19,7 @@
 | part | часть | Часть сообщения: текст, изображение, файл… |
 | role | роль | `User`, `Assistant`, `Tool` |
 | attachment | вложение | `Image`, `TextFile` |
+| escaped length | длина после экранирования | Длина текста, экранированного в JSON-строку; `TextFile::escaped_len` |
 | reasoning | рассуждения | Ход мысли модели (reasoning) |
 | reasoning effort | глубина рассуждений | `Effort` |
 | usage | расход токенов | `Usage` |
@@ -28,6 +29,7 @@
 | tool | инструмент | Функция, которую модель может вызвать |
 | tool call | вызов инструмента | `ToolCall` |
 | tool result | результат инструмента | `ToolResult` |
+| failed result | неудачный результат | `ToolResult::error`, флаг `is_error` |
 | registry | реестр | `Tools` |
 | handler | обработчик | |
 | schema | схема | JSON Schema входных данных |
@@ -44,6 +46,7 @@
 | codec | кодек | |
 | backend | бэкенд | Реализация `http::Backend` |
 | transport | транспорт | |
+| header | заголовок | HTTP-заголовок; `ClientBuilder::header` |
 | proxy | прокси | |
 | relay | ретрансляция | Передача байтов сервера дальше без изменений |
 | compatibility handling | обработка совместимости | Запоминание полей, которые сервер отвергает |

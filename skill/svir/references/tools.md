@@ -21,7 +21,7 @@ the answers back.
 |---|---|
 | `Tool` | A description for the model: `name`, `description`, `input_schema` (JSON Schema) |
 | `ToolCall` | A call the model made: `id`, `name`, and `arguments` as the raw JSON string it wrote |
-| `ToolResult` | The answer to one call: `call_id` and `content`, a string |
+| `ToolResult` | The answer to one call: `call_id`, `content` (a string), and `is_error` for a failed call |
 | `Toolbox` | A trait: anything that lists tools and answers calls |
 | `Tools` | A `Toolbox` that is a plain registry of handlers |
 
@@ -62,8 +62,8 @@ fn tools() -> Tools {
   deserializes from the JSON object the model wrote. Several parameters go
   into one struct.
 * **Deserializing is the validation.** Arguments that do not fit the type
-  never reach the handler: the model is told `error: invalid arguments: ...`
-  and can try again. There is no separate JSON Schema validator, so a rule
+  never reach the handler: the model gets a failed result,
+  `invalid arguments: ...`, and can try again. There is no separate JSON Schema validator, so a rule
   the type does not express (a range, a pattern) is checked in the handler.
 * The schema is for the model and the type is for the handler. Keep them in
   agreement, or derive one from the other (below).
@@ -110,12 +110,23 @@ The caller's crate needs `schemars = "1"` for the derive. `add` and
 |---|---|
 | `String`, `&str` | The text |
 | `serde_json::Value` | The value written as JSON |
-| `Result<T, E>` with `E: Display` | `T` as above, or `error: <E>` |
+| `Result<T, E>` with `E: Display` | `T` as above, or a failed result whose content is `E` |
 
-A failure is a result too. The model reads `error: no weather station in
-Atlantis` and can correct itself, so return `Err` with a message worth
-reading, not a panic. The same goes for an unknown tool name and for invalid
-arguments.
+A failure is a result too: `ToolResult::error(call_id, message)`, with
+`is_error` set and the message, nothing added, as its content. The same goes
+for an unknown tool name and for invalid arguments. So return `Err` with a
+message worth reading, not a panic: the model reads it and can correct
+itself.
+
+Chat Completions has no field that marks a failed call, so the encoder sends
+`error: ` before the content: the model reads `error: no weather station in
+Atlantis`. Two consequences:
+
+* Do not write the prefix by hand. `ToolResult::error(id, "error: ...")`
+  sends it twice; `ToolResult::new(id, "error: ...")` reads as a failure to
+  the model but not to code that tests `is_error`.
+* Code that inspects a result from `Tools` tests `result.is_error`, not
+  `content.starts_with("error:")`. Before 0.1.4 the prefix was in `content`.
 
 Anything else is turned into one of these by the handler: serialize a struct
 with `serde_json::to_value`, or format it.
@@ -230,25 +241,29 @@ impl Toolbox for Notes {
     async fn call(&self, call: &ToolCall) -> ToolResult {
         let mut kept = self.kept.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
-        let content = match call.name.as_str() {
+        let answer = match call.name.as_str() {
             "note" => match call.parse::<Note>() {
                 Ok(note) => {
                     kept.push(note.text);
-                    "kept".to_owned()
+                    Ok("kept".to_owned())
                 }
-                Err(error) => format!("error: invalid arguments: {error}"),
+                Err(error) => Err(format!("invalid arguments: {error}")),
             },
-            "notes" => kept.join("\n"),
-            other => format!("error: no tool named {other}"),
+            "notes" => Ok(kept.join("\n")),
+            other => Err(format!("no tool named {other}")),
         };
 
-        ToolResult::new(&call.id, content)
+        // A failure is a result too: the model reads it and can try again.
+        match answer {
+            Ok(content) => ToolResult::new(&call.id, content),
+            Err(message) => ToolResult::error(&call.id, message),
+        }
     }
 }
 ```
 
-* `call` returns a `ToolResult`, never an error: what went wrong is content
-  for the model.
+* `call` returns a `ToolResult`, never an error: what went wrong is a
+  `ToolResult::error` for the model.
 * The future `call` returns must be `Send`. A `std::sync::MutexGuard` held
   across an `.await` breaks that; take the lock after the awaits, or use an
   async lock.
@@ -270,12 +285,10 @@ struct Lookup {
 }
 
 fn answer(call: &ToolCall) -> ToolResult {
-    let content = match call.parse::<Lookup>() {
-        Ok(args) => format!("order {} is shipped", args.id),
-        Err(error) => format!("error: invalid arguments: {error}"),
-    };
-
-    ToolResult::new(&call.id, content)
+    match call.parse::<Lookup>() {
+        Ok(args) => ToolResult::new(&call.id, format!("order {} is shipped", args.id)),
+        Err(error) => ToolResult::error(&call.id, format!("invalid arguments: {error}")),
+    }
 }
 ```
 

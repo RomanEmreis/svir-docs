@@ -19,6 +19,9 @@ description: Симптом → причина, во время выполнен
 | `Config`: «an https URL needs the `tls` or the `tls-aws-lc` feature» | `default-features = false` без любой из них |
 | `Config`: «the API key variable ... is not set» | `api_key_env` называет переменную, которой у процесса нет. svir не читает файл `.env` |
 | `Config`: «http() must be called before layers are added» | Поднимите `.http(backend)` выше `.layer(..)` и `.wrap(..)` |
+| `Config`: «a header name is not valid» | В имени, переданном в `.header(..)`, есть пробел или другой символ, недопустимый в имени заголовка |
+| `Config`: «the header ... is set by svir, not by the caller» | `.header(..)` назвал `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding` или `connection`. Bearer-ключ передаётся через `api_key` |
+| `Config`: «the value of header ... is not valid» | В значении перевод строки, другой управляющий символ или не-ASCII текст. Часто это значение, прочитанное из файла вместе с завершающим переводом строки: обрежьте его |
 | Паника в другом месте: «no process-level CryptoProvider available» | Скомпилированы два провайдера rustls: `tls` у svir принёс ring рядом с aws-lc-rs из другого крейта. Возьмите svir с `tls-aws-lc`; см. [Фичи и TLS](./client/features#tls-and-the-crypto-provider) |
 
 ### Отправка {/* #sending */}
@@ -34,7 +37,8 @@ description: Симптом → причина, во время выполнен
 | `ContextOverflow` от сервера | Диалог перерос контекст. Некоторые серверы говорят это внутри потока со статусом `200`; svir сообщает об обоих случаях одинаково |
 | `Attachment`: «an image has no media type» | Расширение не из `png`, `jpg`, `jpeg`, `gif`, `webp`. Добавьте `.media_type(..)` |
 | `Attachment`: «a text file is not UTF-8» | `TextFile` — для текста. Изображение отправляйте как `Image`, остальное сначала конвертируйте |
-| `Attachment`: «an attachment changed after the body was built» | В файл записали между измерением и отправкой |
+| `Attachment`: «a text file is not the escaped length it declares» | `TextFile::escaped_len` объявил длину, которой у файла быть не может, или которой нет у текста в памяти. Измерьте весь файл через `svir::body::escaped_len` |
+| `Attachment`: «an attachment changed after the body was built, or is not the length it declares» | В файл записали между измерением и отправкой, или объявленный `escaped_len` неверен |
 
 ### Пока ответ стримится {/* #while-the-answer-streams */}
 
@@ -66,7 +70,7 @@ description: Симптом → причина, во время выполнен
 | Компилятор говорит | Причина |
 |---|---|
 | No variant `System` on `Role` | Системный промпт — это `Request::system(..)` |
-| Cannot create a non-exhaustive struct with a struct expression | Используйте конструктор: `Request::new`, `Tool::new`, `ToolResult::new`, `Usage::new` |
+| Cannot create a non-exhaustive struct with a struct expression | Используйте конструктор: `Request::new`, `Tool::new`, `ToolResult::new`, `ToolResult::error`, `Usage::new` |
 | Non-exhaustive patterns on `Event`, `ErrorKind`, `FinishReason`, `Part` | Добавьте ветку по умолчанию |
 | Use of moved value: `request` | Билдер принимает `self`. Пишите `request = request.user(..)`, а в `complete` и `stream` передавайте `&request` |
 | No method `add` on `Tools` | Включите фичу `schemars` у svir или используйте `add_tool` со схемой |
@@ -76,4 +80,4 @@ description: Симптом → причина, во время выполнен
 | `Layer`, `Next`, `Retry` или `Decoder` not found | Их нет в прелюдии: `svir::layer::..`, `svir::openai::chat::..` |
 | Mismatched types: expected `Client<..>`, found `Client` | Клиент с собственным бэкендом — это `Client<Backend>`; назовите тип или обобщите по `B: svir::http::Backend` |
 | A future is not `Send`, в реализации `Layer` или `Toolbox` | Что-то не `Send` (`Rc`, `std::sync::MutexGuard`) удерживается через `.await` |
-| Expected `ToolResult`, found `Result<..>` в `Toolbox::call` | `call` возвращает результат для модели, а не ошибку: превратите сбой в содержимое |
+| Expected `ToolResult`, found `Result<..>` в `Toolbox::call` | `call` возвращает результат для модели, а не ошибку: превратите сбой в `ToolResult::error(&call.id, message)` |

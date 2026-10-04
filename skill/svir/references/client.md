@@ -8,6 +8,7 @@ backend, and tests that need no server.
 - [The builder](#the-builder)
 - [The base URL](#the-base-url)
 - [API keys](#api-keys)
+- [Extra headers](#extra-headers)
 - [Timeouts](#timeouts)
 - [Listing models](#listing-models)
 - [Layers](#layers)
@@ -25,6 +26,7 @@ and returns it; `build()` returns `Result<Client, Error>`.
 | Method | Effect | Default |
 |---|---|---|
 | `api_key(key)` / `api_key_env(name)` / `api_key_file(path)` | Bearer authentication | None |
+| `header(name, value)` | A header sent with every request, for a gateway or a hosted endpoint | None |
 | `allow_http()` | Plain HTTP to a host that is not loopback | Refused |
 | `connect_timeout(d)` | How long connecting may take | 10 s |
 | `idle_timeout(d)` / `no_idle_timeout()` | How long the server may send nothing | 5 min |
@@ -54,7 +56,7 @@ fn client() -> Result<Client, Error> {
 
 `Client` is cheap to clone. Build one per server and clone it: clones share
 the connection pool and what was learned about the server. Its `Debug` shows
-the URL and never the key.
+the URL and never the key or a header's value.
 
 `context_tokens(n)` counts the request body's bytes as tokens, which never
 underestimates text but overestimates images by far. With image attachments,
@@ -88,6 +90,40 @@ Loopback is `localhost`, `127.0.0.1`, and `[::1]`.
 svir reads no variable and no `.env` file unless told to. The key is sent as
 `Authorization: Bearer ...` and never appears in `Debug`, `Display`, errors,
 or events. A local server without authentication needs no key at all.
+
+## Extra headers
+
+A gateway or a hosted endpoint may ask for a header of its own: attribution,
+an organization or a project, or a key under a name other than
+`Authorization`. `header(name, value)` adds one to every request the client
+sends, the model listing included. Requires svir 0.1.4.
+
+```rust
+use svir::prelude::*;
+
+fn client() -> Result<Client, Error> {
+    Client::openai("https://gateway.example.com/v1")
+        .api_key_env("GATEWAY_KEY")
+        .header("x-title", "My App")
+        .build()
+}
+```
+
+* Names are not case-sensitive and are sent lowercase; setting a name again
+  replaces the earlier value.
+* Every value is treated as a credential: withheld from `Debug`, errors, and
+  events, and sent marked sensitive by the built-in backend.
+* svir reads no environment variable for a header. Read it with
+  `std::env::var(..)` and pass the value.
+* `build()` fails with `ErrorKind::Config` for a name that is not a header
+  name, a value with a line break, another control character, or text that
+  is not ASCII, and the headers svir writes itself or that frame the
+  request: `authorization`, `content-type`, `content-length`, `accept`,
+  `host`, `transfer-encoding`, `connection`. **The Bearer key goes through
+  `api_key`, never `.header("authorization", ..)`.** A key a gateway wants
+  under another name, `api-key` or `x-api-key`, goes through `header`.
+* The headers are the client's, the same on every request. There are no
+  headers per request; a layer works above HTTP and cannot add one.
 
 ## Timeouts
 
@@ -279,7 +315,7 @@ build already has:
 
 ```toml
 [dependencies]
-svir = { version = "0.1.3", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.4", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 The other fix is in the code that relies on the default: pass a provider
@@ -320,6 +356,11 @@ The contract of `send`:
 
 * Send the request as given and return the response as received. No
   redirects, no retries, no changes to the body.
+* `request.headers` holds `authorization` when there is a key and the
+  headers added with `.header(..)`. Every value but those of `content-type`
+  and `accept` may be a credential: keep it out of logs, and send it marked
+  sensitive where the HTTP client can. `HttpRequest`'s `Debug` withholds
+  them.
 * `request.body` is `Some(HttpBody { length, stream })`. Send it with
   `Content-Length: length`, not chunked: not every model server accepts a
   chunked request. `stream` yields `Result<Bytes, Error>`.
