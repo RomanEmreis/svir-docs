@@ -36,7 +36,7 @@ routes to detail on demand.
 | `references/requests.md` | The system prompt, messages and parts, attachments, reasoning effort, conversations, storing and restoring |
 | `references/streaming.md` | Events, the completion, reasoning, usage and speed, cancelling, strict and lenient, limits, failures |
 | `references/tools.md` | `Tool`, the `Tools` registry, schemas from types, the loop, streamed, a `Toolbox` of one's own |
-| `references/client.md` | Base URL, API keys, timeouts, listing models, layers, TLS providers, a custom HTTP backend, tests without a server |
+| `references/client.md` | Base URL, API keys, extra headers, timeouts, listing models, layers, TLS providers, a custom HTTP backend, tests without a server |
 | `references/codec.md` | A proxy that relays the stream, `Encoder` and `Decoder` alone, a transport of one's own |
 | `references/errors.md` | Error kinds, and symptom to cause at runtime and at compile time |
 
@@ -94,13 +94,13 @@ python3 ci/check-snippets.py --docs-dir skill
 
 ## Version
 
-The skill tracks svir **0.1.3**: OpenAI-compatible Chat Completions, streamed.
+The skill tracks svir **0.1.4**: OpenAI-compatible Chat Completions, streamed.
 The frontmatter records it, so an assistant can tell whether the skill matches
 the crate in front of it:
 
 ```yaml
 metadata:
-  svir-version: "0.1.3"
+  svir-version: "0.1.4"
   msrv: "1.85"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
 ```

@@ -34,7 +34,7 @@ different feature sets are compiled in separate crates, since Cargo unifies
 features across a workspace.
 
 Usage: python3 ci/check-snippets.py [--docs-dir docs] [--keep]
-Env:   SVIR_VERSION (default "0.1.3"), or SVIR_PATH to a local checkout
+Env:   SVIR_VERSION (default "0.1.4"), or SVIR_PATH to a local checkout
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ from pathlib import Path
 FENCE = re.compile(r"^```rust([^\n]*)\n(.*?)^```", re.S | re.M)
 # An optional directive on the line immediately above a fence.
 DIRECTIVE = re.compile(r"<!--\s*snippet:([^>]*?)-->\s*\n\Z", re.S)
-SVIR_VERSION = os.environ.get("SVIR_VERSION", "0.1.3")
+SVIR_VERSION = os.environ.get("SVIR_VERSION", "0.1.4")
 SVIR_PATH = os.environ.get("SVIR_PATH")
 DEFAULT_FEATURES = "schemars tracing"
 

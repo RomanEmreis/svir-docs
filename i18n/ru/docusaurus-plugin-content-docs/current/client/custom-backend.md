@@ -42,6 +42,11 @@ fn client() -> Result<Client<Mine>, Error> {
 
 - **Отправьте запрос как есть и верните ответ как получен.** Без редиректов,
   без повторов, без изменений тела.
+- В `request.headers` есть `authorization`, если задан ключ, и заголовки,
+  добавленные через [`.header(..)`](./configuration#extra-headers). **Любое
+  значение, кроме `content-type` и `accept`, может быть учётными данными**:
+  не пишите его в логи и отправляйте с пометкой sensitive, где ваш
+  HTTP-клиент это умеет. `Debug` у `HttpRequest` их скрывает.
 - `request.body` — это `Some(HttpBody { length, stream })`. Отправляйте его с
   `Content-Length: length`, а не chunked: не каждый сервер модели принимает
   chunked-запрос. `stream` отдаёт `Result<Bytes, Error>`.

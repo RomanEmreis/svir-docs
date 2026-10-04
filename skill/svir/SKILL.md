@@ -3,7 +3,7 @@ name: svir
 description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, hosted endpoints), tool calling and the loop that feeds results back, image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions codec on its own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools or relay its stream from Rust through an OpenAI-compatible endpoint, and when reviewing or debugging such code.
 license: MIT OR Apache-2.0
 metadata:
-  svir-version: "0.1.3"
+  svir-version: "0.1.4"
   msrv: "1.85"
   edition: "2024"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
@@ -44,7 +44,8 @@ In an existing project, read `Cargo.toml` first:
 | `svir = "0.1"` and no `features` key | `client` and `tls` are on: everything here except `Tools::add` and the `Trace` layer |
 | `svir = "=0.1.0"`, or a lock file on 0.1.0 | No `Error::status()`, no `tls-aws-lc`, a 4 MiB default wire limit, and inline `<think>` tags left in the answer when a delta is only part of a tag. Later 0.1 releases are drop-in |
 | `svir = "=0.1.1"`, or a lock file on 0.1.1 | No `FinishReason::ContentFilter`: a filtered answer is `Unsupported`. Azure OpenAI streams fail in strict mode with "an empty choices array before the finish reason". Later 0.1 releases are drop-in |
-| `svir = "=0.1.2"`, or a lock file on 0.1.2 | No `ErrorKind::ContentFilter`: a prompt the content filter blocked is `Unsupported`, and, since usage is asked for by default, is sent a second time without `reasoning_effort` and `stream_options`. An annotation from Azure's asynchronous content filter fails the stream with `Unsupported`. 0.1.3 is drop-in |
+| `svir = "=0.1.2"`, or a lock file on 0.1.2 | No `ErrorKind::ContentFilter`: a prompt the content filter blocked is `Unsupported`, and, since usage is asked for by default, is sent a second time without `reasoning_effort` and `stream_options`. An annotation from Azure's asynchronous content filter fails the stream with `Unsupported`. Later 0.1 releases are drop-in |
+| `svir = "=0.1.3"`, or a lock file on 0.1.3 | No `ToolResult::error` and no `is_error`: a failed call is a plain `ToolResult` whose content starts with `error: `, which is also what `Tools` writes. No `ClientBuilder::header`, no `TextFile::escaped_len`. 0.1.4 is drop-in, except that a `Tools` failure no longer has `error: ` in its `content`: test `result.is_error` |
 | `features = ["schemars"]` | `Tools::add`, which derives a tool's input schema from its argument type |
 | `features = ["tracing"]` | The `Trace` layer |
 | `default-features = false` | Types and the codec only: no `Client`, no `EventStream`, no layers, no attachments read from disk. Read `references/codec.md` |
@@ -77,7 +78,7 @@ Each file is self-contained; load only what the task calls for.
 | Building a request: the system prompt, messages, images and text files, reasoning effort, sampling, keeping a conversation | `references/requests.md` |
 | Reading an answer: events, the completion, reasoning, usage and speed, cancelling, strict and lenient decoding, limits | `references/streaming.md` |
 | Tools: describing them, the `Tools` registry, typed arguments, the loop, a `Toolbox` of one's own | `references/tools.md` |
-| The client: base URL, API keys, timeouts, retries and other layers, a custom HTTP backend, listing models, tests without a server | `references/client.md` |
+| The client: base URL, API keys, a gateway's extra headers, timeouts, retries and other layers, a custom HTTP backend, listing models, tests without a server | `references/client.md` |
 | A proxy that relays the stream; svir under another HTTP stack; `Encoder` and `Decoder` alone | `references/codec.md` |
 | An error kind, a failure to explain, a compile error on code that "should work" | `references/errors.md` |
 
@@ -172,6 +173,12 @@ tool calls, their IDs, and its reasoning; `tool_results` answers each call by
 ID. Both are needed, in that order: without them the model sees results for
 calls it never made, and most servers reject the request.
 
+A handler's `Err` reaches the model as a failed result,
+`ToolResult::error(call_id, message)`: `is_error` is set, and Chat
+Completions sends it as `error: <message>`. A `Toolbox` of one's own returns
+`ToolResult::error` for a failure too; writing `error: ` into the content by
+hand sends the prefix twice, or leaves `is_error` unset.
+
 ## Non-negotiables
 
 Each one is a place where habit from another SDK produces code that does not
@@ -218,15 +225,18 @@ compile, or compiles and misbehaves.
 10. **svir reads no environment variables on its own.** A key comes from
     `.api_key(..)`, `.api_key_env("NAME")`, or `.api_key_file(path)`, all
     explicit. Plain HTTP is accepted for loopback only; any other host needs
-    `https://` or `.allow_http()`.
+    `https://` or `.allow_http()`. A header a gateway asks for is
+    `.header(name, value)`, never the Bearer key: `authorization` there is a
+    `Config` error.
 
 11. **Decoding is strict by default.** A field svir does not know is an
     error, not a guess. `.lenient()` on the builder skips unknown input; use
     it for a server with extensions, not to hide a failure you have not read.
 
 12. **Public data types are `#[non_exhaustive]`.** Build them with their
-    constructors (`Request::new`, `Tool::new`, `ToolResult::new`), not struct
-    literals, and match enums with a wildcard arm.
+    constructors (`Request::new`, `Tool::new`, `ToolResult::new`,
+    `ToolResult::error`), not struct literals, and match enums with a
+    wildcard arm.
 
 13. **The text is what the server sent.** A server that separates reasoning
     often starts the answer with blank lines. Trim for display; store as is.

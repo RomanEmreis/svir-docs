@@ -117,6 +117,33 @@ fn attachments(photo: Vec<u8>) -> Message {
 * The model has to see images. A text-only model rejects the request or
   ignores the image; svir cannot tell which model can.
 
+A text file is read twice by default: once to measure its length escaped
+into JSON, which depends on its contents, and once to send it. An
+application that stores files measures once and declares it (svir 0.1.4):
+
+```rust
+use svir::prelude::*;
+
+/// When the file arrives: its length once escaped into a JSON string.
+fn measure(text: &[u8]) -> u64 {
+    svir::body::escaped_len(text)
+}
+
+/// When it is sent: the stored length, so the file is read only once.
+fn attach(path: &str, escaped: u64) -> TextFile {
+    TextFile::path(path).escaped_len(escaped)
+}
+```
+
+* The lengths of a file's pieces add up to the file's, even a piece that
+  ends inside a character, so an upload can be measured chunk by chunk.
+* `escaped_len` does not check UTF-8; the body stream does. A wrong length
+  or bytes that are not UTF-8 fail with `ErrorKind::Attachment`, when the
+  body is built or while it streams, never as a body that disagrees with its
+  `Content-Length`.
+* `svir::body::escaped_len` needs no feature. Images need no declaration:
+  their base64 length follows from their size.
+
 ## Reasoning effort
 
 `Effort` is `Off`, `Low`, `Medium`, `High`, or `XHigh`. Unset sends nothing

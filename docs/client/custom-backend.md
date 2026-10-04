@@ -42,6 +42,11 @@ fn client() -> Result<Client<Mine>, Error> {
 
 - **Send the request as given and return the response as received.** No
   redirects, no retries, no changes to the body.
+- `request.headers` holds `authorization` when there is a key, and the
+  headers added with [`.header(..)`](./configuration#extra-headers). **Every
+  value but those of `content-type` and `accept` may be a credential**: keep
+  it out of logs, and send it marked sensitive where your HTTP client can.
+  `HttpRequest`'s `Debug` withholds them.
 - `request.body` is `Some(HttpBody { length, stream })`. Send it with
   `Content-Length: length`, not chunked: not every model server accepts a
   chunked request. `stream` yields `Result<Bytes, Error>`.

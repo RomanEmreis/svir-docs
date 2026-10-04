@@ -62,7 +62,7 @@ Take the provider the build already has:
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.3", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.4", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 The other fix is in the code that relies on the default: pass a provider there
@@ -70,7 +70,7 @@ too, or install one at startup with `CryptoProvider::install_default`.
 
 ## Versions
 
-This site describes svir **0.1.3**. Within 0.1, later releases are drop-in;
+This site describes svir **0.1.4**. Within 0.1, later releases are drop-in;
 what earlier ones lack:
 
 | Locked on | Missing |
@@ -78,6 +78,11 @@ what earlier ones lack:
 | 0.1.0 | `Error::status()`, the `tls-aws-lc` feature, the 64 MiB default wire limit (it was 4 MiB), and the fix for inline `<think>` tags split across deltas |
 | 0.1.1 | `FinishReason::ContentFilter` (a filtered answer was `Unsupported`), and Azure OpenAI streams in strict mode |
 | 0.1.2 | `ErrorKind::ContentFilter` (a blocked prompt was `Unsupported`, and was sent twice), and Azure's asynchronous content filter (its annotations were `Unsupported`) |
+| 0.1.3 | `ToolResult::error` and `is_error` (a failed call was `error: ` written into the content), `ClientBuilder::header`, and `TextFile::escaped_len` |
+
+One change in 0.1.4 can show in code written for 0.1.3: a failure from
+`Tools` is flagged with `is_error`, and its `content` no longer starts with
+`error: `. What the model reads is the same.
 
 The [changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md)
 has the details.

@@ -17,7 +17,7 @@ description: Описание инструментов для модели, от
 |---|---|
 | `Tool` | Описание для модели: `name`, `description`, `input_schema` (JSON Schema) |
 | `ToolCall` | Вызов, сделанный моделью: `id`, `name` и `arguments` — сырая JSON-строка, которую она написала |
-| `ToolResult` | Ответ на один вызов: `call_id` и `content`, строка |
+| `ToolResult` | Ответ на один вызов: `call_id`, `content` (строка) и `is_error` для неудачного вызова |
 | `Toolbox` | Трейт: всё, что перечисляет инструменты и отвечает на вызовы |
 | `Tools` | `Toolbox` в виде простого реестра обработчиков |
 
@@ -60,8 +60,8 @@ fn tools() -> Tools {
   который десериализуется из JSON-объекта, написанного моделью. Несколько
   параметров собираются в одну структуру.
 - **Десериализация и есть валидация.** Аргументы, не подходящие под тип, до
-  обработчика не доходят: модель получает `error: invalid arguments: ...` и
-  может попробовать снова. Отдельного валидатора JSON Schema нет, поэтому
+  обработчика не доходят: модель получает неудачный результат,
+  `invalid arguments: ...`, и может попробовать снова. Отдельного валидатора JSON Schema нет, поэтому
   правило, которое тип не выражает (диапазон, шаблон), проверяется в
   обработчике.
 - Схема — для модели, тип — для обработчика. Держите их согласованными или
@@ -76,7 +76,7 @@ doc-комментарии.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.3", features = ["schemars"] }
+svir = { version = "0.1.4", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -115,12 +115,18 @@ fn tools() -> Tools {
 |---|---|
 | `String`, `&str` | Текст |
 | `serde_json::Value` | Значение, записанное как JSON |
-| `Result<T, E>` с `E: Display` | `T`, как выше, или `error: <E>` |
+| `Result<T, E>` с `E: Display` | `T`, как выше, или неудачный результат с `E` в содержимом |
 
-Ошибка — тоже результат. Модель читает `error: no weather station in
-Atlantis` и может исправиться, поэтому возвращайте `Err` с сообщением, которое
-стоит прочитать, а не паникуйте. То же относится к неизвестному имени
-инструмента и некорректным аргументам.
+Ошибка — тоже результат: `ToolResult::error(call_id, message)`, с флагом
+`is_error` и сообщением в содержимом, без добавок. То же относится к
+неизвестному имени инструмента и некорректным аргументам. Поэтому возвращайте
+`Err` с сообщением, которое стоит прочитать, а не паникуйте: модель прочитает
+его и сможет исправиться.
+
+В Chat Completions нет поля, которое помечает неудачный вызов, поэтому
+кодировщик отправляет `error: ` перед содержимым: модель читает
+`error: no weather station in Atlantis`. Не пишите префикс сами: неудачный
+результат, где он уже есть, скажет его дважды.
 
 Всё остальное обработчик превращает в одно из этого сам: сериализуйте
 структуру через `serde_json::to_value` или отформатируйте её.
@@ -239,25 +245,29 @@ impl Toolbox for Notes {
     async fn call(&self, call: &ToolCall) -> ToolResult {
         let mut kept = self.kept.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
-        let content = match call.name.as_str() {
+        let answer = match call.name.as_str() {
             "note" => match call.parse::<Note>() {
                 Ok(note) => {
                     kept.push(note.text);
-                    "kept".to_owned()
+                    Ok("kept".to_owned())
                 }
-                Err(error) => format!("error: invalid arguments: {error}"),
+                Err(error) => Err(format!("invalid arguments: {error}")),
             },
-            "notes" => kept.join("\n"),
-            other => format!("error: no tool named {other}"),
+            "notes" => Ok(kept.join("\n")),
+            other => Err(format!("no tool named {other}")),
         };
 
-        ToolResult::new(&call.id, content)
+        // A failure is a result too: the model reads it and can try again.
+        match answer {
+            Ok(content) => ToolResult::new(&call.id, content),
+            Err(message) => ToolResult::error(&call.id, message),
+        }
     }
 }
 ```
 
 - `call` возвращает `ToolResult`, а не ошибку: что пошло не так — это
-  содержимое для модели.
+  `ToolResult::error` для модели.
 - Future, который возвращает `call`, должен быть `Send`. `std::sync::MutexGuard`,
   удерживаемый через `.await`, это ломает; берите блокировку после всех
   `.await` или используйте асинхронную блокировку.
@@ -279,12 +289,10 @@ struct Lookup {
 }
 
 fn answer(call: &ToolCall) -> ToolResult {
-    let content = match call.parse::<Lookup>() {
-        Ok(args) => format!("order {} is shipped", args.id),
-        Err(error) => format!("error: invalid arguments: {error}"),
-    };
-
-    ToolResult::new(&call.id, content)
+    match call.parse::<Lookup>() {
+        Ok(args) => ToolResult::new(&call.id, format!("order {} is shipped", args.id)),
+        Err(error) => ToolResult::error(&call.id, format!("invalid arguments: {error}")),
+    }
 }
 ```
 
