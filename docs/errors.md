@@ -36,7 +36,7 @@ key, the request URL, headers, or the server's message, so it is safe to log.
 | `ContentFilter` | no | The server's content filter blocked the prompt | Change the prompt: the same one is blocked again, and billed again |
 | `Server` | no | The server reported a failure inside the stream | Read `server_message()`; the server's logs say more |
 | `Protocol` | no | A malformed or inconsistent response | Report it, with the raw stream |
-| `Unsupported` | no | Something svir cannot represent; an unexpected status; a response that is not an event stream | See [Troubleshooting](./troubleshooting) |
+| `Unsupported` | no | Something svir cannot represent; a tool call required that the request cannot make; an unexpected status; a response that is not an event stream | See [Troubleshooting](./troubleshooting) |
 | `ResponseLimit` | no | The response passed a configured [limit](./advanced/strictness#limits) | Raise `Limits` on purpose |
 | `Attachment` | no | A file could not be read, is not what it claims, or changed | Fix the file or its media type |
 | `Config` | no | The URL, the key source, or a header is not acceptable | Fix the builder call |
@@ -46,7 +46,8 @@ overflow is recognized by the error's code, type, or message, whether the
 server says it in an error response or inside a `200` stream. A blocked
 prompt is recognized by the error's code alone, `content_filter`, as Azure
 OpenAI sends it with a `400`. An answer the filter stops is not an error but
-[`FinishReason::ContentFilter`](./basics/answers#the-completion).
+[`FinishReason::ContentFilter`](./basics/answers#the-completion), and neither
+is a refusal to answer: that is `FinishReason::Refusal`.
 
 ## Handling them
 

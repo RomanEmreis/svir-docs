@@ -1,9 +1,9 @@
 ---
 name: svir
-description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, hosted endpoints), tool calling and the loop that feeds results back, image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions codec on its own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools or relay its stream from Rust through an OpenAI-compatible endpoint, and when reviewing or debugging such code.
+description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, hosted endpoints), tool calling and the loop that feeds results back, a tool call required or forbidden, structured output (JSON to a schema, parsed into a type), image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions codec on its own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools, get JSON out of it or relay its stream from Rust through an OpenAI-compatible endpoint, and when reviewing or debugging such code.
 license: MIT OR Apache-2.0
 metadata:
-  svir-version: "0.1.4"
+  svir-version: "0.1.5"
   msrv: "1.85"
   edition: "2024"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
@@ -41,12 +41,13 @@ In an existing project, read `Cargo.toml` first:
 
 | What you find | What it means |
 |---|---|
-| `svir = "0.1"` and no `features` key | `client` and `tls` are on: everything here except `Tools::add` and the `Trace` layer |
+| `svir = "0.1"` and no `features` key | `client` and `tls` are on: everything here except `Tools::add`, `Schema::of`, and the `Trace` layer |
 | `svir = "=0.1.0"`, or a lock file on 0.1.0 | No `Error::status()`, no `tls-aws-lc`, a 4 MiB default wire limit, and inline `<think>` tags left in the answer when a delta is only part of a tag. Later 0.1 releases are drop-in |
 | `svir = "=0.1.1"`, or a lock file on 0.1.1 | No `FinishReason::ContentFilter`: a filtered answer is `Unsupported`. Azure OpenAI streams fail in strict mode with "an empty choices array before the finish reason". Later 0.1 releases are drop-in |
 | `svir = "=0.1.2"`, or a lock file on 0.1.2 | No `ErrorKind::ContentFilter`: a prompt the content filter blocked is `Unsupported`, and, since usage is asked for by default, is sent a second time without `reasoning_effort` and `stream_options`. An annotation from Azure's asynchronous content filter fails the stream with `Unsupported`. Later 0.1 releases are drop-in |
-| `svir = "=0.1.3"`, or a lock file on 0.1.3 | No `ToolResult::error` and no `is_error`: a failed call is a plain `ToolResult` whose content starts with `error: `, which is also what `Tools` writes. No `ClientBuilder::header`, no `TextFile::escaped_len`. 0.1.4 is drop-in, except that a `Tools` failure no longer has `error: ` in its `content`: test `result.is_error` |
-| `features = ["schemars"]` | `Tools::add`, which derives a tool's input schema from its argument type |
+| `svir = "=0.1.3"`, or a lock file on 0.1.3 | No `ToolResult::error` and no `is_error`: a failed call is a plain `ToolResult` whose content starts with `error: `, which is also what `Tools` writes. No `ClientBuilder::header`, no `TextFile::escaped_len`. Later 0.1 releases are drop-in, except that a `Tools` failure no longer has `error: ` in its `content`: test `result.is_error` |
+| `svir = "=0.1.4"`, or a lock file on 0.1.4 | No `tool_choice`, no `response_format`, no `Schema`, no `Completion::parse`, no `FinishReason::Refusal`: a refusal fails strict decoding with `Unsupported`, and lenient decoding drops it and completes with `Stop` and no text. 0.1.5 is drop-in, except that a refusal now completes with its text and the finish `Refusal` |
+| `features = ["schemars"]` | `Tools::add`, which derives a tool's input schema from its argument type, and `Schema::of`, which derives an answer's schema from a type |
 | `features = ["tracing"]` | The `Trace` layer |
 | `default-features = false` | Types and the codec only: no `Client`, no `EventStream`, no layers, no attachments read from disk. Read `references/codec.md` |
 | `default-features = false, features = ["client"]` | The client without HTTPS: an `https://` URL is a `Config` error at `build()` |
@@ -57,9 +58,9 @@ What else the caller's crate needs, and when:
 | For | Add |
 |---|---|
 | Any use of `Client` | `tokio` with a runtime; svir's client runs on Tokio |
-| Typed tool arguments | `serde` with `derive` |
+| Typed tool arguments, `Completion::parse` | `serde` with `derive` |
 | A tool schema written by hand | `serde_json` |
-| `Tools::add` | `schemars = "1"` next to svir's `schemars` feature; another major version's `JsonSchema` is a different trait |
+| `Tools::add`, `Schema::of` | `schemars = "1"` next to svir's `schemars` feature; another major version's `JsonSchema` is a different trait |
 | A custom HTTP backend | `bytes` and `futures-core` |
 
 One more check when the build already has rustls through another crate, such
@@ -75,9 +76,9 @@ Each file is self-contained; load only what the task calls for.
 
 | The task | Read |
 |---|---|
-| Building a request: the system prompt, messages, images and text files, reasoning effort, sampling, keeping a conversation | `references/requests.md` |
-| Reading an answer: events, the completion, reasoning, usage and speed, cancelling, strict and lenient decoding, limits | `references/streaming.md` |
-| Tools: describing them, the `Tools` registry, typed arguments, the loop, a `Toolbox` of one's own | `references/tools.md` |
+| Building a request: the system prompt, messages, images and text files, reasoning effort, sampling, an answer as JSON to a schema, keeping a conversation | `references/requests.md` |
+| Reading an answer: events, the completion and its finish reasons (a refusal among them), reasoning, usage and speed, cancelling, strict and lenient decoding, limits | `references/streaming.md` |
+| Tools: describing them, the `Tools` registry, typed arguments, the loop, requiring or forbidding a call, a `Toolbox` of one's own | `references/tools.md` |
 | The client: base URL, API keys, a gateway's extra headers, timeouts, retries and other layers, a custom HTTP backend, listing models, tests without a server | `references/client.md` |
 | A proxy that relays the stream; svir under another HTTP stack; `Encoder` and `Decoder` alone | `references/codec.md` |
 | An error kind, a failure to explain, a compile error on code that "should work" | `references/errors.md` |
@@ -207,7 +208,10 @@ compile, or compiles and misbehaves.
    assistant turn from `done.text` loses the tool calls and their IDs.
 
 6. **There is no agent loop.** Feeding tool results back is the caller's
-   loop, as above. Bound it: a model can call tools forever.
+   loop, as above. Bound it: a model can call tools forever. A
+   `tool_choice` that requires a call stays on the request every turn, so
+   set it back to `ToolChoice::Auto` with the results, or the model never
+   gets to answer.
 
 7. **Dropping the stream cancels the request** and closes the connection.
    There is nothing to call. Conversely, a stream dropped early generated
@@ -240,6 +244,13 @@ compile, or compiles and misbehaves.
 
 13. **The text is what the server sent.** A server that separates reasoning
     often starts the answer with blank lines. Trim for display; store as is.
+
+14. **Read a structured answer with `done.parse::<T>()`**, not
+    `serde_json::from_str(&done.text)`. `parse` refuses an answer that did
+    not finish with `Stop` -- cut off, refused, filtered -- which can still
+    be valid JSON. Nothing validates the answer against the schema: the type
+    is the check. A refusal is `FinishReason::Refusal`, with the refusal as
+    the text.
 
 ## Verify before you claim it works
 

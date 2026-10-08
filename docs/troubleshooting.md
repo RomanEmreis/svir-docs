@@ -35,6 +35,9 @@ What a symptom usually means. For what each error kind is, see
 | `Unsupported`: "the response is not an event stream" | A success status with HTML or JSON: a gateway page, or an endpoint that ignores `stream` |
 | `ContextOverflow` before anything was sent | `context_tokens` is set and the body's bytes plus `max_tokens` exceed it. Bytes overestimate images by far |
 | `ContextOverflow` from the server | The conversation outgrew the context. Some servers say it inside a `200` stream; svir reports both the same way |
+| `Unsupported`: "a tool call is required, and the request offers no tools" | `ToolChoice::Required` on a request with no tools. Add them with `.tool(..)` or `.tools(&toolbox)` |
+| `Unsupported`: "a call is required of a tool the request does not offer" | `ToolChoice::tool(name)` names a tool that is not in the request: a typo, or a tool not added |
+| `Unsupported`, detail "HTTP 400", on a request with a tool choice or a response format | The server does not take it, and svir never sends the request without it. LM Studio rejects a named tool (use `Required` with that one tool) and `ResponseFormat::Json` (use a `Schema`). OpenAI rejects `Json` unless the messages say "JSON"; OpenAI and Azure OpenAI reject a strict schema whose objects do not list every property as required with `additionalProperties: false` |
 | `Attachment`: "an image has no media type" | An extension other than `png`, `jpg`, `jpeg`, `gif`, `webp`. Add `.media_type(..)` |
 | `Attachment`: "a text file is not UTF-8" | `TextFile` is for text. Send an image as `Image`; convert anything else first |
 | `Attachment`: "a text file is not the escaped length it declares" | `TextFile::escaped_len` declared a length the file cannot have, or one text in memory does not have. Measure the whole file with `svir::body::escaped_len` |
@@ -46,6 +49,7 @@ What a symptom usually means. For what each error kind is, see
 |---|---|
 | `Unsupported`: "a delta field outside the protocol", or another "outside the protocol" | Strict decoding met something svir does not know. Read what the server sends (the `relay` example prints it); `.lenient()` skips such fields |
 | `Unsupported`: "a finish reason outside the protocol" | The server stopped for a reason svir does not know (a filtered answer is `FinishReason::ContentFilter`, not this). Lenient mode does not change this |
+| `Protocol`: "an answer that is both content and a refusal", or "a refusal with tool calls" | The server contradicts itself about what the answer is. Report it, with the raw stream; lenient mode does not change this |
 | `Timeout`: "the server sent no response" or "the response stalled" | Silence for longer than the idle timeout (5 min by default). A local model on a long prompt can take longer; raise `idle_timeout` |
 | `Timeout` from a `Timeout::first_token` layer on a local model | The deadline is shorter than the model needs to read the prompt |
 | `TruncatedStream` | The connection was cut: a gateway's own timeout, or a server that crashed or unloaded the model |
@@ -60,7 +64,13 @@ What a symptom usually means. For what each error kind is, see
 | `done.text` is empty and `finish` is `Length` | Reasoning used the whole output budget. Raise `max_tokens`, or lower the effort |
 | `done.text` is empty and `finish` is `ToolCalls` | Not a failure: the model is waiting for tool results |
 | `finish` is `ContentFilter`, though the whole answer streamed | Azure's asynchronous content filter vets the answer after streaming it, and blocked part of it. Withdraw the text the user was shown |
+| `finish` is `Refusal` | The model would not answer, and `done.text` is its refusal: show it. Asked for a format, OpenAI's models refuse rather than give an answer they will not put in it |
+| `parse` fails: "the answer is not whole: it finished with Length" | The output limit cut the answer off: raise `max_tokens`. With another finish named, the text is not the answer asked for either |
+| `parse` fails, and `done.text` is empty | LM Studio, with reasoning on, sent the JSON as reasoning. Add `.reasoning(Effort::Off)` |
+| `parse` fails on an answer that looks right | The type and the schema disagree, or no response format was set and the model wrapped the JSON in prose or a code fence. Derive the schema from the type with `Schema::of` |
 | The model never calls a tool | The model has no tool support, or the description does not say when to use the tool |
+| The model answers without the call `tool_choice` required | The server took the choice and did not keep it, as LM Studio does with `Required`. svir does not check: test `done.calls` |
+| A loop with a required tool call never ends with an answer | The choice stays on the request every turn. Set `.tool_choice(ToolChoice::Auto)` with the results |
 | The next request after a tool call is rejected | The assistant turn or a result is missing: `request.assistant(done).tool_results(results)` |
 | The same answer, whatever model is named | Some local servers answer with the loaded model when they do not know the ID. List the models |
 | A request for one model is slow once, then fast | A local server loaded the model on the first request |
@@ -70,10 +80,12 @@ What a symptom usually means. For what each error kind is, see
 | The compiler says | Cause |
 |---|---|
 | No variant `System` on `Role` | The system prompt is `Request::system(..)` |
-| Cannot create a non-exhaustive struct with a struct expression | Use the constructor: `Request::new`, `Tool::new`, `ToolResult::new`, `ToolResult::error`, `Usage::new` |
-| Non-exhaustive patterns on `Event`, `ErrorKind`, `FinishReason`, `Part` | Add a wildcard arm |
+| Cannot create a non-exhaustive struct with a struct expression | Use the constructor: `Request::new`, `Tool::new`, `ToolResult::new`, `ToolResult::error`, `Schema::new`, `Usage::new` |
+| Non-exhaustive patterns on `Event`, `ErrorKind`, `FinishReason`, `Part`, `ToolChoice`, `ResponseFormat` | Add a wildcard arm |
 | Use of moved value: `request` | The builder takes `self`. Write `request = request.user(..)`, and pass `&request` to `complete` and `stream` |
 | No method `add` on `Tools` | Enable svir's `schemars` feature, or use `add_tool` with a schema |
+| No function `of` on `Schema` | Enable svir's `schemars` feature, or write the schema with `Schema::new` |
+| `T: DeserializeOwned` is not satisfied, from `parse` | The type does not derive `Deserialize`, or borrows: `parse` returns an owned value, so a field is a `String`, not a `&str` |
 | The trait `JsonSchema` is not implemented | Your `schemars` is not version 1, so its derive is a different trait |
 | Cannot find `Trace` in `svir::layer` | Enable the `tracing` feature |
 | Cannot find `Client` in `svir` | `default-features = false` turned the `client` feature off |

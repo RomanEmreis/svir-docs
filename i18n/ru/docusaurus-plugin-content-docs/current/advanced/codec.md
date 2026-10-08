@@ -12,7 +12,7 @@ hyper, ни Tokio.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.4", default-features = false }
+svir = { version = "0.1.5", default-features = false }
 ```
 
 Если единственная причина — другой HTTP-клиент, то
@@ -95,9 +95,9 @@ fn encode(request: &Request) -> Result<(u64, bytes::Bytes), Error> {
 |---|---|
 | `Encoder::new()` | Отправляет то, что задано в запросе, и ничего больше |
 | `.include_usage(bool)` | Запрашивает расход токенов, если запрос не говорит иного. Здесь выключено; клиент его включает |
-| `.lean(bool)` | Опускает `reasoning_effort` и `stream_options` — для сервера, который, как известно, их отвергает |
+| `.lean(bool)` | Опускает `reasoning_effort` и `stream_options` — для сервера, который, как известно, их отвергает. Выбор инструмента и формат ответа остаются |
 | `.context_tokens(n)` | Падает с `ContextOverflow`, если длина тела плюс `max_tokens` не помещается |
-| `encode(&request)` | Без I/O. Вложение, заданное путём к файлу, — `ErrorKind::Attachment` |
+| `encode(&request)` | Без I/O. Вложение, заданное путём к файлу, — `ErrorKind::Attachment`; обязательный вызов инструмента, который запрос сделать не может, — `Unsupported` |
 | `encode_files(&request).await` | Фича `client`. Сначала измеряет файлы-вложения, чтобы длина была точной; текстовый файл с объявленным `escaped_len` не читается |
 | `body.len()` | `Content-Length` для отправки |
 | `body.into_bytes()` | Всё тело целиком, когда все вложения в памяти |

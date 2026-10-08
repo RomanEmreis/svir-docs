@@ -168,3 +168,8 @@ What to know about it:
   context overflow or a prompt the content filter blocked is reported as it
   is: sent again, a blocked prompt would be billed again.
 - If the second attempt fails too, the original error is reported.
+- A [tool choice](../basics/tools#requiring-or-forbidding-a-call) and a
+  [response format](../basics/structured-output) are not optional: the answer
+  has to meet them. The second attempt keeps them, a request that carries them
+  and no optional field is not sent twice, and a server that does not take
+  them fails the request with `Unsupported` and its own words.

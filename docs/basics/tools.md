@@ -73,7 +73,7 @@ argument type, doc comments included.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.4", features = ["schemars"] }
+svir = { version = "0.1.5", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -203,6 +203,56 @@ joining them is the decoder's work. **A tool call is executable only from
 `Completion::calls`**: calls are released after the finish reason and the end
 of the stream, never from a stream that was cut short.
 
+## Requiring or forbidding a call
+
+By default the model decides whether to call a tool. `Request::tool_choice`
+decides instead:
+
+| `ToolChoice` | The model | Sent as |
+|---|---|---|
+| `Auto` | Decides. The default | Nothing |
+| `None` | May not call a tool | `"none"`; nothing when the request offers no tools |
+| `Required` | Must call at least one of the tools offered | `"required"` |
+| `ToolChoice::tool(name)` | Must call this tool, which the request offers | `{"type": "function", "function": {"name": ...}}` |
+
+```rust
+use serde_json::json;
+use svir::prelude::*;
+
+fn classify(ticket: &str) -> Request {
+    let label = Tool::new("label", "Label a support ticket by its topic.").schema(json!({
+        "type": "object",
+        "properties": {"topic": {"type": "string", "enum": ["billing", "bug", "other"]}},
+        "required": ["topic"]
+    }));
+
+    Request::new("qwen3-27b")
+        .tool(label)
+        // The answer is a call of `label`, not prose.
+        .tool_choice(ToolChoice::tool("label"))
+        .user(ticket)
+}
+```
+
+- **A call that cannot be made fails before anything is sent.** `Required` on
+  a request that offers no tools, or `ToolChoice::tool(name)` for a tool the
+  request does not offer, is `ErrorKind::Unsupported`, before any attachment
+  is read.
+- **A tool choice is never dropped.** The
+  [compatibility handling](../client/configuration#compatibility-handling)
+  keeps it, and a server that does not take it fails the request with
+  `Unsupported` and its own words. LM Studio rejects a tool named in the
+  choice; with that one tool offered, `Required` asks the same.
+- **The answer is not checked against the choice.** A server may take it and
+  not keep it: LM Studio accepts `Required` and can answer with text and no
+  call. `done.calls` says what the model called.
+- **In a loop, the choice stays on the request.** A model required to call a
+  tool on every turn never gets to answer. Once it has called, set the choice
+  back with the results:
+  `request.assistant(done).tool_results(results).tool_choice(ToolChoice::Auto)`.
+- `None` keeps the tools in the request and asks for an answer without a call:
+  one way to end a loop at its bound.
+
 ## A toolbox of your own
 
 Tools that share state, or that come from somewhere else (another process, a
@@ -297,8 +347,6 @@ not JSON. `Tools` reads it as `{}`; hand-written dispatch has to allow for it.
 ## What svir does not do
 
 - **No `#[tool]` macro.** A tool is a `Tool` and a handler.
-- **No `tool_choice`.** svir 0.1 cannot force or forbid a tool call; the model
-  decides. Say so in the system prompt if it matters.
 - **No MCP.** svir has no MCP client. The bridge from MCP tools to a
   `Toolbox` belongs on the MCP side, in
   [neva](https://romanemreis.github.io/neva-docs/); any other MCP client can be

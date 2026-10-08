@@ -4,16 +4,16 @@ A model-neutral [Agent Skill](https://agentskills.io/specification) for
 talking to LLMs from Rust with the
 [svir](https://github.com/RomanEmreis/svir) crate.
 
-Covers svir **0.1.4** (MSRV 1.85, edition 2024): OpenAI-compatible Chat
+Covers svir **0.1.5** (MSRV 1.85, edition 2024): OpenAI-compatible Chat
 Completions, streamed.
 
 ```
 svir/
 |-- SKILL.md                    the entrypoint the agent loads
 `-- references/
-    |-- requests.md             the system prompt, messages, attachments, reasoning effort, conversations
-    |-- streaming.md            events, the completion, usage and speed, cancelling, strict and lenient, limits
-    |-- tools.md                Tool, the Tools registry, schemas from types, the loop, a Toolbox of one's own
+    |-- requests.md             the system prompt, messages, attachments, reasoning effort, structured output, conversations
+    |-- streaming.md            events, the completion and its finish reasons, usage and speed, cancelling, strict and lenient, limits
+    |-- tools.md                Tool, the Tools registry, schemas from types, the loop, tool choice, a Toolbox of one's own
     |-- client.md               base URL, API keys, timeouts, layers, a custom HTTP backend, tests without a server
     |-- codec.md                a proxy that relays the stream, Encoder and Decoder alone
     `-- errors.md               error kinds, and symptom -> cause at runtime and at compile time
@@ -61,7 +61,7 @@ For Rust code that talks to LLMs with the `svir` crate, read
 ## Verifying
 
 Every Rust snippet in this skill is a complete set of items and compiles
-against svir 0.1.4 with the `schemars` and `tracing` features on, so the
+against svir 0.1.5 with the `schemars` and `tracing` features on, so the
 code an agent copies out of it builds. The
 [docs repository](https://github.com/RomanEmreis/svir-docs)'s CI compiles
 every one of them against the published crate. A block that needs a feature

@@ -18,7 +18,7 @@ LM Studio, llama.cpp, vLLM, mlx-lm, Azure OpenAI, and hosted endpoints.
 svir is in preview. The public API may still change between `0.x` releases.
 What changed is in the
 [changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md). This
-site describes **svir 0.1.4**.
+site describes **svir 0.1.5**.
 :::
 
 ## Install
@@ -35,7 +35,7 @@ Or by hand:
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = "0.1.4"
+svir = "0.1.5"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
@@ -93,7 +93,8 @@ What this shows, and what every svir program repeats:
 The core is the protocol:
 
 - **Types**: messages with text, image, and file parts; tool descriptors,
-  calls, and results; usage; finish reasons; one typed error.
+  calls, and results; a tool call required or forbidden; an answer as JSON, or
+  JSON to a schema; usage; finish reasons; one typed error.
 - **Encoder**: the request body, streamed from disk with attachments, with an
   exact `Content-Length` known before the first byte.
 - **Decoder**: SSE framing, tool calls assembled across deltas, reasoning from
@@ -102,7 +103,8 @@ The core is the protocol:
 - **Transport**: HTTP with optional Bearer authentication, typed status
   mapping, timeouts, and cancellation by drop.
 - **Compatibility**: a server that rejects optional fields such as
-  `reasoning_effort` is detected once and remembered.
+  `reasoning_effort` is detected once and remembered. What the answer must
+  meet, a tool choice or a response format, is never dropped.
 
 On top of it, opt-in:
 
@@ -138,6 +140,8 @@ show the few lines each one takes.
 - [Requests](./basics/requests) and [Reading an answer](./basics/answers) cover
   the everyday calls.
 - [Tools](./basics/tools) shows the loop that feeds tool results back.
+- [Structured output](./basics/structured-output) reads an answer as JSON into
+  a type.
 - [Configuration](./client/configuration) and [Layers](./client/layers) cover
   the client.
 - [Errors](./errors) and [Troubleshooting](./troubleshooting) are for when it

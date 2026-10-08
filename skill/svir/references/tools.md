@@ -11,6 +11,7 @@ the answers back.
 - [What a handler returns](#what-a-handler-returns)
 - [The loop](#the-loop)
 - [The loop, streamed](#the-loop-streamed)
+- [Requiring or forbidding a call](#requiring-or-forbidding-a-call)
 - [A toolbox of one's own](#a-toolbox-of-ones-own)
 - [Without a registry](#without-a-registry)
 - [What svir does not do](#what-svir-does-not-do)
@@ -204,6 +205,58 @@ async fn turn(client: &Client, request: &Request) -> Result<Completion, Error> {
 interleave. The fragments of `arguments` are not valid JSON until joined, and
 joining them is the decoder's work: use `Completion::calls`.
 
+## Requiring or forbidding a call
+
+The model decides by default. `Request::tool_choice` (svir 0.1.5) decides
+instead:
+
+| `ToolChoice` | The model | Sent as |
+|---|---|---|
+| `Auto` | Decides. The default | Nothing |
+| `None` | May not call a tool | `"none"`; nothing when the request offers no tools |
+| `Required` | Must call at least one of the tools offered | `"required"` |
+| `ToolChoice::tool(name)` | Must call this tool, which the request offers | `{"type": "function", "function": {"name": ...}}` |
+
+```rust
+use serde_json::json;
+use svir::prelude::*;
+
+fn classify(ticket: &str) -> Request {
+    let label = Tool::new("label", "Label a support ticket by its topic.").schema(json!({
+        "type": "object",
+        "properties": {"topic": {"type": "string", "enum": ["billing", "bug", "other"]}},
+        "required": ["topic"]
+    }));
+
+    Request::new("qwen3-27b")
+        .tool(label)
+        // The answer is a call of `label`, not prose.
+        .tool_choice(ToolChoice::tool("label"))
+        .user(ticket)
+}
+```
+
+* **A call that cannot be made fails before anything is sent**, with
+  `ErrorKind::Unsupported`: `Required` on a request with no tools ("a tool
+  call is required, and the request offers no tools"), or a named tool the
+  request does not offer ("a call is required of a tool the request does not
+  offer").
+* **Never dropped.** The compatibility retry keeps the choice; a server that
+  does not take it fails the request with `Unsupported` and its message.
+  LM Studio rejects a named tool with a 400; offer that one tool and use
+  `Required`.
+* **Not checked.** A server may take the choice and not keep it: LM Studio
+  accepts `Required` and can answer with text and no call. Test
+  `done.calls`, as the loop does; never assume the call is there.
+* **The choice stays on the request.** In a loop, a model required to call a
+  tool on every turn never answers. Once it has called, set it back:
+  `request.assistant(done).tool_results(results).tool_choice(ToolChoice::Auto)`.
+* `None` keeps the tools in the request and asks for an answer without a
+  call: one way to end a loop at its bound.
+* For an answer as JSON, `response_format` with a `Schema` is the direct
+  route; a required tool call is the route on a server without structured
+  output. See `requests.md`.
+
 ## A toolbox of one's own
 
 Tools that share state, or that come from somewhere else (another process, a
@@ -299,8 +352,6 @@ for it.
 ## What svir does not do
 
 * **No `#[tool]` macro.** A tool is a `Tool` and a handler.
-* **No `tool_choice`.** svir 0.1 cannot force or forbid a tool call; the
-  model decides. Say so in the system prompt if it matters.
 * **No MCP.** svir has no MCP client. Tools of an MCP server reach a model
   through a bridge that implements `Toolbox` on the MCP side.
 * **No tool runs by itself.** Arguments come from a model and are data.
