@@ -38,6 +38,10 @@ Both modes enforce the [limits](#limits), fail a stream that ends early, and
 refuse tool calls that are inconsistent: missing or duplicate IDs, a gap in
 the indices, or a finish reason that disagrees with the calls.
 
+A refusal, sent in `refusal` in place of `content`, is read in both modes: it
+is the answer's text, and the finish is `Refusal`. An answer that is both
+content and a refusal, or a refusal with tool calls, is `Protocol` in both.
+
 Azure OpenAI's content filter sends chunks that carry nothing of the answer,
 and both modes read them the same way:
 

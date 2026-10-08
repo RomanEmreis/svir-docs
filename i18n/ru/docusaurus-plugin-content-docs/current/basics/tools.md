@@ -76,7 +76,7 @@ doc-комментарии.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.4", features = ["schemars"] }
+svir = { version = "0.1.5", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -208,6 +208,57 @@ async fn turn(client: &Client, request: &Request) -> Result<Completion, Error> {
 `Completion::calls`**: вызовы выдаются после причины завершения и конца
 потока и никогда — из оборванного потока.
 
+## Требовать или запрещать вызов {/* #requiring-or-forbidding-a-call */}
+
+По умолчанию модель сама решает, вызывать ли инструмент. `Request::tool_choice`
+решает за неё:
+
+| `ToolChoice` | Модель | Отправляется как |
+|---|---|---|
+| `Auto` | Решает сама. По умолчанию | Ничего |
+| `None` | Не может вызвать инструмент | `"none"`; ничего, если запрос не предлагает инструментов |
+| `Required` | Должна вызвать хотя бы один из предложенных инструментов | `"required"` |
+| `ToolChoice::tool(name)` | Должна вызвать этот инструмент, который запрос предлагает | `{"type": "function", "function": {"name": ...}}` |
+
+```rust
+use serde_json::json;
+use svir::prelude::*;
+
+fn classify(ticket: &str) -> Request {
+    let label = Tool::new("label", "Label a support ticket by its topic.").schema(json!({
+        "type": "object",
+        "properties": {"topic": {"type": "string", "enum": ["billing", "bug", "other"]}},
+        "required": ["topic"]
+    }));
+
+    Request::new("qwen3-27b")
+        .tool(label)
+        // The answer is a call of `label`, not prose.
+        .tool_choice(ToolChoice::tool("label"))
+        .user(ticket)
+}
+```
+
+- **Вызов, который сделать нельзя, падает до отправки.** `Required` в
+  запросе без инструментов или `ToolChoice::tool(name)` для инструмента,
+  которого в запросе нет, — это `ErrorKind::Unsupported`, ещё до чтения
+  вложений.
+- **Выбор инструмента никогда не отбрасывается.**
+  [Обработка совместимости](../client/configuration#compatibility-handling)
+  его сохраняет, а сервер, который его не принимает, проваливает запрос с
+  `Unsupported` и собственными словами. LM Studio отвергает инструмент,
+  названный в выборе; если предложен только этот инструмент, `Required`
+  просит того же.
+- **Ответ с выбором не сверяется.** Сервер может принять выбор и не
+  выполнить его: LM Studio принимает `Required` и может ответить текстом без
+  вызова. Что модель вызвала, говорит `done.calls`.
+- **В цикле выбор остаётся в запросе.** Модель, обязанная вызывать
+  инструмент на каждом ходу, так и не ответит. Когда вызов сделан, верните
+  выбор вместе с результатами:
+  `request.assistant(done).tool_results(results).tool_choice(ToolChoice::Auto)`.
+- `None` оставляет инструменты в запросе и просит ответ без вызова: так
+  можно завершить цикл на его пределе.
+
 ## Свой набор инструментов {/* #a-toolbox-of-your-own */}
 
 Инструменты с общим состоянием или пришедшие откуда-то ещё (другой процесс,
@@ -303,9 +354,6 @@ fn answer(call: &ToolCall) -> ToolResult {
 ## Чего svir не делает {/* #what-svir-does-not-do */}
 
 - **Нет макроса `#[tool]`.** Инструмент — это `Tool` и обработчик.
-- **Нет `tool_choice`.** svir 0.1 не может заставить модель вызвать
-  инструмент или запретить это; решает модель. Если это важно, скажите об этом
-  в системном промпте.
 - **Нет MCP.** В svir нет MCP-клиента. Мост от MCP-инструментов к `Toolbox`
   живёт на стороне MCP, в [neva](https://romanemreis.github.io/neva-docs/);
   любой другой MCP-клиент подключается так же — через

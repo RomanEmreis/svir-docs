@@ -296,6 +296,13 @@ context overflow (`ContextOverflow`) or a prompt the content filter blocked
 (`ContentFilter`) is reported as it is: sent again, a blocked prompt would be
 billed again.
 
+A tool choice and a response format are not optional fields: the answer has
+to meet them. The second attempt keeps them, a request that carries them and
+no optional field is not sent twice, and a server that does not take them
+fails the request with `Unsupported`, the status, and its message. Do not
+catch that and resend without them: the answer would not be what the code
+acts on.
+
 ## TLS and the crypto provider
 
 HTTPS is rustls with the webpki roots and HTTP/2 by ALPN. The crypto provider
@@ -315,7 +322,7 @@ build already has:
 
 ```toml
 [dependencies]
-svir = { version = "0.1.4", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.5", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 The other fix is in the code that relies on the default: pass a provider

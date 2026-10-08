@@ -38,6 +38,8 @@ and dropping its result changes nothing.
 | `tool_result(call_id, content)` | Adds the result of one tool call |
 | `tool_results(results)` | Adds results, one message each |
 | `tool(tool)` / `tools(&toolbox)` | Describes tools the model may call; see [Tools](./tools) |
+| `tool_choice(choice)` | Whether the model may or must call a tool; see [Tools](./tools#requiring-or-forbidding-a-call) |
+| `response_format(format)` | The answer as JSON, or as JSON that matches a schema; see [Structured output](./structured-output) |
 | `reasoning(effort)` | How much the model should reason |
 | `max_tokens(n)` | The most tokens to generate. On most servers reasoning counts toward it |
 | `temperature(t)` | Sampling temperature |
@@ -45,7 +47,8 @@ and dropping its result changes nothing.
 | `send_reasoning(bool)` | Sends reasoning from earlier answers back (off by default) |
 
 Nothing is sent unless it is set: a request without `max_tokens` or
-`temperature` leaves them to the server.
+`temperature` leaves them to the server, and a tool choice or a response
+format left at its default is not sent either.
 
 The fields are public for reading (`request.model`, `request.messages`), which
 is what a [layer](../client/layers) uses. `Request` is `Clone`, and
@@ -123,7 +126,6 @@ and in `Completion::reasoning` at the end; see
 
 ## What a request cannot say
 
-svir 0.1 has no `tool_choice`, no structured output (`response_format`), no
-stop sequences, and asks for one choice. The response is always a stream;
-`complete` collects it. If a server needs a field that is not in the table
-above, svir 0.1 does not carry it.
+svir 0.1 has no stop sequences, and asks for one choice. The response is
+always a stream; `complete` collects it. If a server needs a field that is not
+in the table above, svir 0.1 does not carry it.

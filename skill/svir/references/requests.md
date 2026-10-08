@@ -1,7 +1,8 @@
 # Requests
 
 How to say what the model should answer: the system prompt, messages and
-their parts, attachments, reasoning effort, and the conversation so far.
+their parts, attachments, reasoning effort, an answer as JSON, and the
+conversation so far.
 
 ## Contents
 
@@ -9,6 +10,7 @@ their parts, attachments, reasoning effort, and the conversation so far.
 - [Messages and parts](#messages-and-parts)
 - [Attachments](#attachments)
 - [Reasoning effort](#reasoning-effort)
+- [Structured output](#structured-output)
 - [A conversation](#a-conversation)
 - [Storing and restoring](#storing-and-restoring)
 - [What a request cannot say](#what-a-request-cannot-say)
@@ -27,6 +29,8 @@ returns it.
 | `tool_result(call_id, content)` | Adds the result of one tool call |
 | `tool_results(results)` | Adds results, one message each, from `Vec<ToolResult>` |
 | `tool(tool)` / `tools(&toolbox)` | Describes tools the model may call; see `tools.md` |
+| `tool_choice(choice)` | Whether the model may or must call a tool; see `tools.md` |
+| `response_format(format)` | The answer as JSON, or as JSON that matches a schema; see [Structured output](#structured-output) |
 | `reasoning(effort)` | How much the model should reason |
 | `max_tokens(n)` | The most tokens to generate. On most servers reasoning counts toward it |
 | `temperature(t)` | Sampling temperature |
@@ -34,7 +38,8 @@ returns it.
 | `send_reasoning(bool)` | Sends reasoning from earlier answers back (off by default) |
 
 Nothing is sent unless it is set: a request without `max_tokens` or
-`temperature` leaves them to the server.
+`temperature` leaves them to the server, and a tool choice or a response
+format left at its default is not sent either.
 
 ```rust
 use svir::prelude::*;
@@ -157,6 +162,100 @@ that.
 Reasoning comes back as `Event::Reasoning` and in `Completion::reasoning`; see
 `streaming.md`.
 
+## Structured output
+
+An answer as JSON, or as JSON that matches a schema, read back into a type
+(svir 0.1.5). The answer arrives as text like any other.
+
+<!-- snippet: features="schemars" -->
+```rust
+use schemars::JsonSchema;
+use serde::Deserialize;
+use svir::prelude::*;
+
+/// A river, as an atlas lists it.
+#[derive(Deserialize, JsonSchema)]
+struct River {
+    /// The river's name in English.
+    name: String,
+    /// Its length in kilometres.
+    length_km: u32,
+    /// The lake or sea it flows into.
+    mouth: String,
+}
+
+async fn river(client: &Client) -> Result<River, Box<dyn std::error::Error>> {
+    let request = Request::new("qwen3-27b")
+        .response_format(Schema::of::<River>())
+        .user("Describe the river that joins Lake Onega to Lake Ladoga.");
+
+    let answer = client.complete(&request).await?;
+
+    Ok(answer.parse()?)
+}
+```
+
+| `response_format(..)` | Sent as | The answer |
+|---|---|---|
+| `ResponseFormat::Text` | Nothing | Text of any shape. The default |
+| `ResponseFormat::Json` | `{"type": "json_object"}` | A JSON object of any shape |
+| `Schema::new(name, schema)`, `Schema::of::<T>()` | `{"type": "json_schema", ...}` | JSON that matches the schema |
+
+A schema written by hand:
+
+```rust
+use serde_json::json;
+use svir::prelude::*;
+
+fn weather(city: &str) -> Request {
+    let schema = json!({
+        "type": "object",
+        "properties": {"city": {"type": "string"}, "celsius": {"type": "number"}},
+        "required": ["city", "celsius"],
+        "additionalProperties": false
+    });
+
+    Request::new("qwen3-27b")
+        .response_format(Schema::new("weather", schema).strict(true))
+        .user(format!("The weather in {city}, please."))
+}
+```
+
+* **`Schema::of::<T>()`** needs svir's `schemars` feature and `schemars = "1"`
+  in the caller's crate. It names the schema after the type and takes the doc
+  comments as descriptions. A schema's name is ASCII letters, digits, `_`,
+  and `-`, at most 64 characters.
+* **`.strict(true)`** is off by default and sent only when on. OpenAI and
+  Azure OpenAI guarantee a matching answer only with it, and then accept a
+  schema only when every object lists all of its properties under `required`
+  and sets `additionalProperties: false`. A derived schema fits when every
+  struct has `#[serde(deny_unknown_fields)]` and no `Option` fields (schemars
+  leaves an `Option` out of `required`). Local servers constrain sampling to
+  the schema, strict or not. svir never rewrites a schema to fit.
+* **`ResponseFormat::Json`**: OpenAI rejects it unless the messages contain
+  the word "JSON"; LM Studio rejects it with a 400 and wants a schema.
+* **`done.parse::<T>()`** reads the text with serde. Only an answer that
+  finished with `Stop` parses; any other finish is an error before the text
+  is read ("the answer is not whole: it finished with Length"), because an
+  answer cut off by the output limit can still be valid JSON. The error is a
+  `serde_json::Error`. Blank lines before the JSON parse fine.
+* **Nothing validates the answer against the schema.** The type is the
+  check; a rule the type does not express is checked after parsing. To read
+  text that did not finish with `Stop` anyway, use `serde_json::from_str`.
+* **A model may refuse**, OpenAI's above all when asked for a format: the
+  finish is `FinishReason::Refusal` and the text is the refusal. `parse`
+  fails on it. See `streaming.md`.
+* **`parse` reads the text, never the reasoning.** LM Studio with reasoning
+  on (effort unset, `Low`, `Medium`) holds the reasoning to the schema and
+  sends the whole JSON as reasoning, with no text. Ask it for
+  `.reasoning(Effort::Off)` with the format.
+* **A response format is never dropped.** The compatibility retry keeps it,
+  and a server that does not take it fails the request with `Unsupported`,
+  the status, and its message. Ask for a format the server takes; do not
+  fall back to text silently.
+* Streamed, the JSON arrives as `Event::Text` pieces and is not valid until
+  whole. Parse the completion, not the deltas.
+
 ## A conversation
 
 The client keeps nothing. The request is the conversation, and the caller
@@ -214,7 +313,8 @@ as base64. A stored path has to exist again when the request is sent.
 
 ## What a request cannot say
 
-svir 0.1 has no `tool_choice`, no structured output (`response_format`), no
-stop sequences, and asks for one choice. The response is always a stream;
-`complete` collects it. Do not reach for a field that is not in the table
-above: say that svir 0.1 does not carry it.
+svir 0.1 has no stop sequences, and asks for one choice. The response is
+always a stream; `complete` collects it. Do not reach for a field that is not
+in the table above: say that svir 0.1 does not carry it. `tool_choice` and
+`response_format` need svir 0.1.5; on an earlier lock file, say so rather
+than writing the JSON by hand.

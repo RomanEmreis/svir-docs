@@ -75,7 +75,7 @@ async fn show(client: &Client, request: &Request) -> Result<Completion, Error> {
 
 | Поле | Тип | Что хранит |
 |---|---|---|
-| `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length` или `ContentFilter` |
+| `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, `ContentFilter` или `Refusal` |
 | `text` | `String` | Ответ — ровно в том виде, в каком пришёл |
 | `reasoning` | `Vec<Reasoning>` | Рассуждения, по записи на каждый источник |
 | `calls` | `Vec<ToolCall>` | Полные вызовы инструментов, по порядку |
@@ -99,6 +99,9 @@ fn describe(done: &Completion) -> &'static str {
         // streamed. `done.text` holds what was sent, which may be what was
         // flagged: withdraw what the user was shown.
         FinishReason::ContentFilter => "the answer was filtered",
+        // The model would not answer, and `done.text` says why: show it as
+        // the answer. It does not have a format the request asked for.
+        FinishReason::Refusal => "the model refused",
         _ => "a finish reason this code does not know yet",
     }
 }
@@ -110,6 +113,18 @@ fn describe(done: &Completion) -> &'static str {
 Текст перед блокировкой может содержать заблокированное и в обычном режиме
 Azure. Поэтому код, который показывает дельты по мере прихода, при такой
 причине завершения убирает текст, а не оставляет его с пометкой.
+
+Завершение `Refusal` значит, что модель отказалась отвечать, а текст — это её
+отказ. Chat Completions присылает отказ в отдельном поле вместо ответа; svir
+передаёт его потоком как `Event::Text`, как любой ответ, поэтому чат
+показывает его без отдельного кода. Модели OpenAI отказываются прежде всего
+тогда, когда их просят ответить в формате, в котором они отвечать не станут;
+см. [Структурированный вывод](./structured-output#refusals). Отказ,
+остановленный контент-фильтром, — это `ContentFilter`.
+
+Ответ, запрошенный в JSON, читается в тип через `done.parse::<T>()`, который
+разбирает только ответ, завершившийся с `Stop`; см.
+[Структурированный вывод](./structured-output#reading-the-answer).
 
 Текст — ровно то, что прислал сервер. Сервер, который отделяет рассуждения,
 часто начинает ответ с пустых строк: обрезайте их при показе, а храните как

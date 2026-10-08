@@ -24,15 +24,20 @@
 | reasoning effort | глубина рассуждений | `Effort` |
 | usage | расход токенов | `Usage` |
 | finish reason | причина завершения | `FinishReason` |
+| refusal | отказ | Отказ модели отвечать; `FinishReason::Refusal` |
 | content filter | контент-фильтр | `ErrorKind::ContentFilter`, `FinishReason::ContentFilter` |
 | annotation | аннотация | Вердикт асинхронного контент-фильтра Azure по уже отправленному тексту |
 | tool | инструмент | Функция, которую модель может вызвать |
 | tool call | вызов инструмента | `ToolCall` |
 | tool result | результат инструмента | `ToolResult` |
 | failed result | неудачный результат | `ToolResult::error`, флаг `is_error` |
+| tool choice | выбор инструмента | `ToolChoice`, `Request::tool_choice` |
 | registry | реестр | `Tools` |
 | handler | обработчик | |
-| schema | схема | JSON Schema входных данных |
+| schema | схема | JSON Schema входных данных инструмента или ответа; `Schema` |
+| strict schema | строгая схема | `Schema::strict`; не путать со строгим режимом разбора |
+| structured output | структурированный вывод | Ответ в JSON или в JSON по схеме |
+| response format | формат ответа | `ResponseFormat`, `Request::response_format` |
 | loop | цикл | Цикл, возвращающий модели результаты инструментов |
 | layer | слой | Middleware вокруг вызова (`Layer`) |
 | middleware | middleware | Не переводится |

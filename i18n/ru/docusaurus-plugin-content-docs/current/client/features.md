@@ -14,15 +14,15 @@ svir — один крейт без процедурных макросов. Е�
 | `client` | `Client`, `EventStream`, транспорт на hyper, вложения с диска | Да |
 | `tls` | HTTPS через rustls с провайдером ring и корнями webpki | Да |
 | `tls-aws-lc` | HTTPS с провайдером aws-lc-rs вместо ring | Нет |
-| `schemars` | `Tools::add`, который выводит схему входных данных инструмента из типа аргумента | Нет |
+| `schemars` | `Tools::add` и `Schema::of`, которые выводят из типа схему входных данных инструмента и схему ответа | Нет |
 | `tracing` | [Слой `Trace`](./layers#trace) | Нет |
 
 По `Cargo.toml` проекта видно, что ему доступно:
 
 | Что там | Что это значит |
 |---|---|
-| `svir = "0.1"` и нет ключа `features` | `client` и `tls`: всё, кроме `Tools::add` и `Trace` |
-| `features = ["schemars"]` | `Tools::add`; крейту для derive нужен ещё `schemars = "1"` |
+| `svir = "0.1"` и нет ключа `features` | `client` и `tls`: всё, кроме `Tools::add`, `Schema::of` и `Trace` |
+| `features = ["schemars"]` | `Tools::add` и `Schema::of`; крейту для derive нужен ещё `schemars = "1"` |
 | `features = ["tracing"]` | Слой `Trace` |
 | `default-features = false` | Только типы и кодек: нет `Client`, `EventStream`, слоёв и вложений с диска. См. [Кодек сам по себе](../advanced/codec) |
 | `default-features = false, features = ["client"]` | Клиент без HTTPS: URL `https://` — ошибка `Config` в `build()` |
@@ -33,9 +33,9 @@ svir — один крейт без процедурных макросов. Е�
 | Для | Добавьте |
 |---|---|
 | Любого использования `Client` | `tokio` с рантаймом; клиент работает на Tokio |
-| Типизированных аргументов инструментов | `serde` с `derive` |
+| Типизированных аргументов инструментов, `Completion::parse` | `serde` с `derive` |
 | Схемы инструмента, написанной вручную | `serde_json` |
-| `Tools::add` | `schemars = "1"` рядом с фичей `schemars` у svir |
+| `Tools::add`, `Schema::of` | `schemars = "1"` рядом с фичей `schemars` у svir |
 | Собственного HTTP-бэкенда | `bytes` и `futures-core` |
 
 ## TLS и криптопровайдер {/* #tls-and-the-crypto-provider */}
@@ -63,7 +63,7 @@ CryptoProvider available».
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.4", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.5", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 Другой способ — исправить код, который полагается на умолчание: передать
@@ -72,7 +72,7 @@ svir = { version = "0.1.4", default-features = false, features = ["client", "tls
 
 ## Версии {/* #versions */}
 
-Этот сайт описывает svir **0.1.4**. В пределах 0.1 более поздние релизы
+Этот сайт описывает svir **0.1.5**. В пределах 0.1 более поздние релизы
 ставятся без изменений кода; чего нет в более ранних:
 
 | Зафиксирована | Чего нет |
@@ -81,10 +81,17 @@ svir = { version = "0.1.4", default-features = false, features = ["client", "tls
 | 0.1.1 | `FinishReason::ContentFilter` (отфильтрованный ответ был `Unsupported`) и потоков Azure OpenAI в строгом режиме |
 | 0.1.2 | `ErrorKind::ContentFilter` (заблокированный промпт был `Unsupported` и отправлялся дважды) и чтения асинхронного контент-фильтра Azure (его аннотации были `Unsupported`) |
 | 0.1.3 | `ToolResult::error` и `is_error` (неудачный вызов был текстом `error: ` в содержимом), `ClientBuilder::header` и `TextFile::escaped_len` |
+| 0.1.4 | `Request::tool_choice`, `Request::response_format` со `Schema`, `Completion::parse` и `FinishReason::Refusal` (отказ был `Unsupported` в строгом режиме и отбрасывался в мягком, оставляя ответ без текста) |
 
 Одно изменение в 0.1.4 может проявиться в коде, написанном для 0.1.3: сбой из
 `Tools` помечается флагом `is_error`, и его `content` больше не начинается с
 `error: `. Модель читает то же, что и раньше.
+
+Одно изменение в 0.1.5 может проявиться в коде, написанном для 0.1.4: отказ
+теперь читается. Строгий режим проваливал его с `Unsupported`, а мягкий
+завершал ответ со `Stop` и без текста. Теперь отказ — это текст, а причина
+завершения — `Refusal`, которую `match`, написанный для 0.1.4, отправит в
+ветку по умолчанию.
 
 Подробности — в
 [журнале изменений](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md).

@@ -12,7 +12,7 @@ no client, no hyper, no Tokio.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.4", default-features = false }
+svir = { version = "0.1.5", default-features = false }
 ```
 
 If the only reason is a different HTTP client, a
@@ -94,9 +94,9 @@ fn encode(request: &Request) -> Result<(u64, bytes::Bytes), Error> {
 |---|---|
 | `Encoder::new()` | Sends what the request sets and nothing else |
 | `.include_usage(bool)` | Asks for token counts when the request does not say. Off here; the client turns it on |
-| `.lean(bool)` | Leaves out `reasoning_effort` and `stream_options`, for a server known to reject them |
+| `.lean(bool)` | Leaves out `reasoning_effort` and `stream_options`, for a server known to reject them. A tool choice and a response format stay |
 | `.context_tokens(n)` | Fails with `ContextOverflow` when the body length plus `max_tokens` does not fit |
-| `encode(&request)` | No I/O. An attachment held as a file path is `ErrorKind::Attachment` |
+| `encode(&request)` | No I/O. An attachment held as a file path is `ErrorKind::Attachment`; a tool call required that the request cannot make is `Unsupported` |
 | `encode_files(&request).await` | Feature `client`. Measures file attachments first, so that the length is exact; a text file with a declared `escaped_len` is not read |
 | `body.len()` | The `Content-Length` to send |
 | `body.into_bytes()` | The whole body, when every attachment is in memory |

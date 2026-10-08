@@ -75,7 +75,7 @@ can be moved into a task or kept in a struct. It also implements
 
 | Field | Type | Holds |
 |---|---|---|
-| `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, or `ContentFilter` |
+| `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, `ContentFilter`, or `Refusal` |
 | `text` | `String` | The answer, exactly as sent |
 | `reasoning` | `Vec<Reasoning>` | Reasoning, one entry per source |
 | `calls` | `Vec<ToolCall>` | Complete tool calls, in order |
@@ -99,6 +99,9 @@ fn describe(done: &Completion) -> &'static str {
         // streamed. `done.text` holds what was sent, which may be what was
         // flagged: withdraw what the user was shown.
         FinishReason::ContentFilter => "the answer was filtered",
+        // The model would not answer, and `done.text` says why: show it as
+        // the answer. It does not have a format the request asked for.
+        FinishReason::Refusal => "the model refused",
         _ => "a finish reason this code does not know yet",
     }
 }
@@ -110,6 +113,18 @@ block afterwards, even after the model's own `stop`; svir makes that the
 finish. Text before a block may hold what was blocked in Azure's default mode
 too. So code that shows the deltas as they arrive takes the text down on this
 finish, rather than leaving it up with a note.
+
+A `Refusal` finish means the model would not answer, and the text is its
+refusal. Chat Completions sends a refusal in a field of its own, in place of
+the answer; svir streams it as `Event::Text` like any answer, so a chat shows
+it with no code of its own. OpenAI's models refuse above all when asked for an
+answer in a format they will not give; see
+[Structured output](./structured-output#refusals). A refusal the content
+filter stopped is `ContentFilter`.
+
+An answer asked for as JSON is read into a type with `done.parse::<T>()`,
+which parses only an answer that finished with `Stop`; see
+[Structured output](./structured-output#reading-the-answer).
 
 The text is what the server sent. A server that separates reasoning often
 starts the answer with blank lines: trim for display, store as is.

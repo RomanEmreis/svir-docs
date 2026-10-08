@@ -47,7 +47,7 @@ After `Completed`, or after an `Err`, `next()` returns `None`. `Event` is
 
 | Field | Type | Holds |
 |---|---|---|
-| `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, or `ContentFilter` |
+| `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, `ContentFilter`, or `Refusal` |
 | `text` | `String` | The answer, exactly as sent |
 | `reasoning` | `Vec<Reasoning>` | Reasoning, one entry per source |
 | `calls` | `Vec<ToolCall>` | Complete tool calls, in order |
@@ -71,6 +71,9 @@ fn describe(done: &Completion) -> &'static str {
         // streamed. `done.text` holds what was sent, which may be what was
         // flagged: withdraw what the user was shown.
         FinishReason::ContentFilter => "the answer was filtered",
+        // The model would not answer, and `done.text` says why: show it as
+        // the answer. It does not have a format the request asked for.
+        FinishReason::Refusal => "the model refused",
         _ => "a finish reason this code does not know yet",
     }
 }
@@ -82,6 +85,17 @@ a block afterwards, even after the model's own `stop`. Text before a block may
 hold what was blocked in Azure's default mode too. Code that shows the deltas
 as they arrive takes the text down on this finish; leaving it up with a note
 keeps showing what the filter blocked.
+
+A `Refusal` finish (svir 0.1.5) means the model would not answer, and the
+text is its refusal. Chat Completions sends it in `refusal` in place of
+`content`, with a `stop` finish on the wire; svir streams it as `Event::Text`
+and makes the finish `Refusal`, so a chat shows it with no code of its own
+and code that asked for JSON learns the text is not JSON. A refusal the
+content filter stopped is `ContentFilter`. Do not look for a `refusal` field
+on the completion: there is none.
+
+`done.parse::<T>()` reads an answer asked for as JSON into a type, and only
+when `finish` is `Stop`; see `requests.md`.
 
 ## Streaming and keeping the answer
 
@@ -207,7 +221,9 @@ make the answer wrong.
 
 Both modes enforce the limits, fail a stream that ends early, and refuse
 tool calls that are inconsistent (missing or duplicate IDs, a gap in the
-indices, a finish reason that disagrees with the calls).
+indices, a finish reason that disagrees with the calls). A refusal is read in
+both modes; an answer that is both content and a refusal, or a refusal with
+tool calls, is `Protocol` in both.
 
 Azure OpenAI's prompt report (no choices, `prompt_filter_results`) and the
 annotations of its asynchronous content filter (`content_filter_offsets`, no

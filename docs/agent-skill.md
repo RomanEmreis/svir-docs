@@ -25,7 +25,7 @@ on. An assistant writing from habit reaches for a `system` role message,
 `choices[0].delta.content`, or a client that remembers the chat. That code does
 not compile here, or worse, compiles and loses the tool calls.
 
-The skill front-loads exactly those traps, thirteen non-negotiables, and then
+The skill front-loads exactly those traps, fourteen non-negotiables, and then
 routes to detail on demand.
 
 ## What is in it
@@ -33,9 +33,9 @@ routes to detail on demand.
 | File | Covers |
 |---|---|
 | `SKILL.md` | Establishing the version and the features, a call and a tool loop that work, the non-negotiables, routing |
-| `references/requests.md` | The system prompt, messages and parts, attachments, reasoning effort, conversations, storing and restoring |
-| `references/streaming.md` | Events, the completion, reasoning, usage and speed, cancelling, strict and lenient, limits, failures |
-| `references/tools.md` | `Tool`, the `Tools` registry, schemas from types, the loop, streamed, a `Toolbox` of one's own |
+| `references/requests.md` | The system prompt, messages and parts, attachments, reasoning effort, structured output, conversations, storing and restoring |
+| `references/streaming.md` | Events, the completion and its finish reasons, reasoning, usage and speed, cancelling, strict and lenient, limits, failures |
+| `references/tools.md` | `Tool`, the `Tools` registry, schemas from types, the loop, streamed, requiring or forbidding a call, a `Toolbox` of one's own |
 | `references/client.md` | Base URL, API keys, extra headers, timeouts, listing models, layers, TLS providers, a custom HTTP backend, tests without a server |
 | `references/codec.md` | A proxy that relays the stream, `Encoder` and `Decoder` alone, a transport of one's own |
 | `references/errors.md` | Error kinds, and symptom to cause at runtime and at compile time |
@@ -94,13 +94,13 @@ python3 ci/check-snippets.py --docs-dir skill
 
 ## Version
 
-The skill tracks svir **0.1.4**: OpenAI-compatible Chat Completions, streamed.
+The skill tracks svir **0.1.5**: OpenAI-compatible Chat Completions, streamed.
 The frontmatter records it, so an assistant can tell whether the skill matches
 the crate in front of it:
 
 ```yaml
 metadata:
-  svir-version: "0.1.4"
+  svir-version: "0.1.5"
   msrv: "1.85"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
 ```
