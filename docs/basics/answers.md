@@ -136,7 +136,7 @@ Servers carry reasoning in three ways, and svir reads all of them into
 
 | `ReasoningSource` | Where it was |
 |---|---|
-| `ReasoningContent` | The `reasoning_content` field |
+| `ReasoningContent` | The `reasoning_content` field, or the same text in both `reasoning_content` and `reasoning`, as mlx-vlm sends it |
 | `Reasoning` | The `reasoning` field |
 | `Think` | `<think>...</think>` inside the answer text |
 
@@ -144,6 +144,12 @@ Inline `<think>` tags are split out of the text by default, so reasoning is not
 shown as the answer even when the server has no reasoning parser. A tag cut in
 half by a chunk boundary is held back until the next chunk decides it.
 `.think(Think::Keep)` on the client builder leaves the tags in the text.
+
+A `</think>` with no `<think>` before it stays in the text. A chat template
+can open the tag in the prompt, and a server without a reasoning parser then
+sends the reasoning as the answer, ending in a lone `</think>`; by the time it
+arrives, the reasoning has streamed as text. Turn the server's parser on:
+vLLM's `--reasoning-parser`, or llama.cpp's default `--reasoning-format`.
 
 `Completion::reasoning` has one entry per source, in order of first
 appearance, with the pieces joined. Reasoning goes to the user as reasoning,

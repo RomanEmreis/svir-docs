@@ -53,11 +53,12 @@ had no tools, and wrong for a live one.
 
 ## Sending reasoning back
 
-Reasoning in earlier answers is kept in the history but not sent back unless
-the request says `.send_reasoning(true)`. When it is sent, it goes under the
-field it arrived in (`reasoning_content` or `reasoning`), since a server
-expects its own field back unchanged. Reasoning split out of inline `<think>`
-tags is never sent back.
+Reasoning in earlier answers is kept in the history but not sent back unless the
+request says `.send_reasoning(true)`. When it is sent, it goes under the field
+it arrived in (`reasoning_content` or `reasoning`), since a server expects its
+own field back unchanged. The same text in both fields is one piece and goes
+back as `reasoning_content`. Reasoning split out of inline `<think>` tags is
+never sent back.
 
 ```rust
 use svir::prelude::*;

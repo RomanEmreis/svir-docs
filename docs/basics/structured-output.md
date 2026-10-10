@@ -12,7 +12,7 @@ other, and `Completion::parse` reads it into a type.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.5", features = ["schemars"] }
+svir = { version = "0.1.6", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -101,8 +101,9 @@ default and sent only when on.
   false`. A schema derived from a type fits when every struct in it has
   `#[serde(deny_unknown_fields)]` and no `Option` fields; schemars leaves an
   `Option` out of `required`.
-- **Local servers** (LM Studio, llama.cpp) constrain sampling to the schema,
-  strict or not.
+- **Local servers** (LM Studio, llama.cpp, vLLM, mlx-vlm) constrain sampling
+  to the schema, strict or not. mlx-lm reads no response format at all: it
+  answers in free text, and `parse` fails.
 
 svir does not rewrite a derived schema to fit: rewritten, it would no longer
 say what the type says.

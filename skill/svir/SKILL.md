@@ -1,9 +1,9 @@
 ---
 name: svir
-description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, hosted endpoints), tool calling and the loop that feeds results back, a tool call required or forbidden, structured output (JSON to a schema, parsed into a type), image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions codec on its own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools, get JSON out of it or relay its stream from Rust through an OpenAI-compatible endpoint, and when reviewing or debugging such code.
+description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, hosted endpoints), tool calling and the loop that feeds results back, a tool call required or forbidden, structured output (JSON to a schema, parsed into a type), image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions codec on its own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools, get JSON out of it or relay its stream from Rust through an OpenAI-compatible endpoint, and when reviewing or debugging such code.
 license: MIT OR Apache-2.0
 metadata:
-  svir-version: "0.1.5"
+  svir-version: "0.1.6"
   msrv: "1.85"
   edition: "2024"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
@@ -47,6 +47,7 @@ In an existing project, read `Cargo.toml` first:
 | `svir = "=0.1.2"`, or a lock file on 0.1.2 | No `ErrorKind::ContentFilter`: a prompt the content filter blocked is `Unsupported`, and, since usage is asked for by default, is sent a second time without `reasoning_effort` and `stream_options`. An annotation from Azure's asynchronous content filter fails the stream with `Unsupported`. Later 0.1 releases are drop-in |
 | `svir = "=0.1.3"`, or a lock file on 0.1.3 | No `ToolResult::error` and no `is_error`: a failed call is a plain `ToolResult` whose content starts with `error: `, which is also what `Tools` writes. No `ClientBuilder::header`, no `TextFile::escaped_len`. Later 0.1 releases are drop-in, except that a `Tools` failure no longer has `error: ` in its `content`: test `result.is_error` |
 | `svir = "=0.1.4"`, or a lock file on 0.1.4 | No `tool_choice`, no `response_format`, no `Schema`, no `Completion::parse`, no `FinishReason::Refusal`: a refusal fails strict decoding with `Unsupported`, and lenient decoding drops it and completes with `Stop` and no text. 0.1.5 is drop-in, except that a refusal now completes with its text and the finish `Refusal` |
+| `svir = "=0.1.5"`, or a lock file on 0.1.5 | Reasoning that mlx-vlm sends under both `reasoning_content` and `reasoning` arrives twice: two `Reasoning` events for every piece, and two entries in `Completion::reasoning`. A call of a named tool that vLLM finishes with `stop` fails with `Protocol`. An error in FastAPI's form, `{"detail": ...}` (mlx-vlm), has no `server_message()`, and mlx-vlm's context overflows are `Unsupported`. 0.1.6 is drop-in |
 | `features = ["schemars"]` | `Tools::add`, which derives a tool's input schema from its argument type, and `Schema::of`, which derives an answer's schema from a type |
 | `features = ["tracing"]` | The `Trace` layer |
 | `default-features = false` | Types and the codec only: no `Client`, no `EventStream`, no layers, no attachments read from disk. Read `references/codec.md` |
@@ -244,6 +245,8 @@ compile, or compiles and misbehaves.
 
 13. **The text is what the server sent.** A server that separates reasoning
     often starts the answer with blank lines. Trim for display; store as is.
+    A server without a reasoning parser can leave the reasoning in the text,
+    ending in a lone `</think>` svir does not split: turn the parser on.
 
 14. **Read a structured answer with `done.parse::<T>()`**, not
     `serde_json::from_str(&done.text)`. `parse` refuses an answer that did

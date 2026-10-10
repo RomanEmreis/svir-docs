@@ -36,7 +36,10 @@ fn lenient() -> Result<Client, Error> {
 
 Both modes enforce the [limits](#limits), fail a stream that ends early, and
 refuse tool calls that are inconsistent: missing or duplicate IDs, a gap in
-the indices, or a finish reason that disagrees with the calls.
+the indices, a `tool_calls` finish with no calls, or calls with a
+`content_filter` finish. Calls with a `stop` finish are an answer of calls,
+and the finish is `ToolCalls`: vLLM finishes a call of a named tool that way,
+as OpenAI has been reported to.
 
 A refusal, sent in `refusal` in place of `content`, is read in both modes: it
 is the answer's text, and the finish is `Refusal`. An answer that is both
@@ -111,3 +114,7 @@ fn keep_tags() -> Result<Client, Error> {
     Client::openai("http://127.0.0.1:1234").think(Think::Keep).build()
 }
 ```
+
+Splitting needs the opening tag. A chat template that opens it in the prompt
+leaves only `</think>` in the answer, and that stays text: turn on the
+server's reasoning parser instead.

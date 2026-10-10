@@ -138,13 +138,19 @@ Servers carry reasoning in three ways, and svir reads all of them into
 
 | `ReasoningSource` | Where it was |
 |---|---|
-| `ReasoningContent` | The `reasoning_content` field |
+| `ReasoningContent` | The `reasoning_content` field, or the same text in both `reasoning_content` and `reasoning` (mlx-vlm sends both; svir 0.1.6 reads it once) |
 | `Reasoning` | The `reasoning` field |
 | `Think` | `<think>...</think>` inside the answer text |
 
 Inline `<think>` tags are split out of the text by default, so reasoning is
 not shown as the answer even when a server has no reasoning parser.
 `.think(Think::Keep)` on the client builder leaves the tags in the text.
+
+A `</think>` with no `<think>` before it stays in the text. A chat template
+can open the tag in the prompt; a server without a reasoning parser then
+sends the reasoning as the answer, ending in a lone `</think>`, and svir has
+streamed it as text before the marker arrives. The fix is on the server:
+vLLM's `--reasoning-parser`, llama.cpp's default `--reasoning-format`.
 
 `Completion::reasoning` has one entry per source, in order of first
 appearance, with the pieces joined.
@@ -221,7 +227,9 @@ make the answer wrong.
 
 Both modes enforce the limits, fail a stream that ends early, and refuse
 tool calls that are inconsistent (missing or duplicate IDs, a gap in the
-indices, a finish reason that disagrees with the calls). A refusal is read in
+indices, a `tool_calls` finish with no calls, calls with a `content_filter`
+finish). Calls with a `stop` finish, as vLLM sends a named tool's call, are
+an answer of calls: the finish is `ToolCalls` (svir 0.1.6). A refusal is read in
 both modes; an answer that is both content and a refusal, or a refusal with
 tool calls, is `Protocol` in both.
 

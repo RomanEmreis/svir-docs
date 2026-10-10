@@ -94,13 +94,13 @@ python3 ci/check-snippets.py --docs-dir skill
 
 ## Version
 
-The skill tracks svir **0.1.5**: OpenAI-compatible Chat Completions, streamed.
+The skill tracks svir **0.1.6**: OpenAI-compatible Chat Completions, streamed.
 The frontmatter records it, so an assistant can tell whether the skill matches
 the crate in front of it:
 
 ```yaml
 metadata:
-  svir-version: "0.1.5"
+  svir-version: "0.1.6"
   msrv: "1.85"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
 ```

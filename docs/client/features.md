@@ -62,7 +62,7 @@ Take the provider the build already has:
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.5", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.6", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 The other fix is in the code that relies on the default: pass a provider there
@@ -70,7 +70,7 @@ too, or install one at startup with `CryptoProvider::install_default`.
 
 ## Versions
 
-This site describes svir **0.1.5**. Within 0.1, later releases are drop-in;
+This site describes svir **0.1.6**. Within 0.1, later releases are drop-in;
 what earlier ones lack:
 
 | Locked on | Missing |
@@ -80,6 +80,7 @@ what earlier ones lack:
 | 0.1.2 | `ErrorKind::ContentFilter` (a blocked prompt was `Unsupported`, and was sent twice), and Azure's asynchronous content filter (its annotations were `Unsupported`) |
 | 0.1.3 | `ToolResult::error` and `is_error` (a failed call was `error: ` written into the content), `ClientBuilder::header`, and `TextFile::escaped_len` |
 | 0.1.4 | `Request::tool_choice`, `Request::response_format` with `Schema`, `Completion::parse`, and `FinishReason::Refusal` (a refusal was `Unsupported` in strict mode, and dropped in lenient mode, which left no text) |
+| 0.1.5 | Reasoning sent under both `reasoning_content` and `reasoning` read once (mlx-vlm's arrived twice), a call of a named tool finished with `stop` read as one (it was `Protocol`), and the server's message from a `detail` body, with the context overflows mlx-vlm reports there (they were `Unsupported`) |
 
 One change in 0.1.4 can show in code written for 0.1.3: a failure from
 `Tools` is flagged with `is_error`, and its `content` no longer starts with
@@ -89,6 +90,12 @@ One change in 0.1.5 can show in code written for 0.1.4: a refusal is read.
 Strict mode failed it with `Unsupported`, and lenient mode completed with
 `Stop` and no text. Now the refusal is the text and the finish is `Refusal`,
 which a `match` written for 0.1.4 takes in its wildcard arm.
+
+Two changes in 0.1.6 can show in code written for 0.1.5, both where svir was
+wrong. A call of a named tool that the server finishes with `stop`, as vLLM
+does, completes with `ToolCalls`; it failed with `Protocol`. Reasoning that
+mlx-vlm sends under both `reasoning_content` and `reasoning` is one entry,
+from `ReasoningContent`, where it was two.
 
 The [changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md)
 has the details.

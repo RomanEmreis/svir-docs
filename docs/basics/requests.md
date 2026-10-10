@@ -120,6 +120,11 @@ that for you: the request is sent again without the field, once, and the server
 is remembered. See
 [compatibility handling](../client/configuration#compatibility-handling).
 
+vLLM hands the effort to the model's chat template, which may name only some
+of the values: Qwen3.8's rejects `High` with `400`. The request is then sent
+without the optional fields, and the client stops sending them to that
+server, usage included. Pick an effort the template names.
+
 The reasoning itself comes back as `Event::Reasoning` while the answer streams,
 and in `Completion::reasoning` at the end; see
 [Reading an answer](./answers#reasoning).

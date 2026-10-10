@@ -157,7 +157,10 @@ the model obeys is the model's business.
 
 A server that rejects the field is handled by the client: the request is sent
 again without it, once, and the server is remembered. No code is needed for
-that.
+that. vLLM hands the effort to the model's chat template, which may name only
+some values (Qwen3.8's rejects `High` with a 400); the client then stops
+sending the optional fields to that server, usage included. Use an effort the
+template names.
 
 Reasoning comes back as `Event::Reasoning` and in `Completion::reasoning`; see
 `streaming.md`.
@@ -231,7 +234,8 @@ fn weather(city: &str) -> Request {
   and sets `additionalProperties: false`. A derived schema fits when every
   struct has `#[serde(deny_unknown_fields)]` and no `Option` fields (schemars
   leaves an `Option` out of `required`). Local servers constrain sampling to
-  the schema, strict or not. svir never rewrites a schema to fit.
+  the schema, strict or not, except mlx-lm, which reads no response format.
+  svir never rewrites a schema to fit.
 * **`ResponseFormat::Json`**: OpenAI rejects it unless the messages contain
   the word "JSON"; LM Studio rejects it with a 400 and wants a schema.
 * **`done.parse::<T>()`** reads the text with serde. Only an answer that
@@ -285,7 +289,8 @@ async fn converse(client: &Client, lines: Vec<String>) -> Result<(), Error> {
   if it is also stored elsewhere.
 * Reasoning in earlier answers is kept in the history but not sent back
   unless `.send_reasoning(true)`. When sent, it goes under the field it
-  arrived in; reasoning split out of inline `<think>` tags is never sent.
+  arrived in (the same text in both fields goes as `reasoning_content`);
+  reasoning split out of inline `<think>` tags is never sent.
 * When a call fails, the user message already added is still in the request.
   Decide whether to keep it for the retry or rebuild the request.
 * The history grows with every turn. Trimming or summarizing it is the
