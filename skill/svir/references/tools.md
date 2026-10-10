@@ -244,9 +244,15 @@ fn classify(ticket: &str) -> Request {
 * **Never dropped.** The compatibility retry keeps the choice; a server that
   does not take it fails the request with `Unsupported` and its message.
   LM Studio rejects a named tool with a 400; offer that one tool and use
-  `Required`.
+  `Required`. vLLM takes a choice only when started with a tool-call parser
+  (`--enable-auto-tool-choice --tool-call-parser ...`); without one, a
+  request with tools fails with a 400 unless its choice is `None`.
+* **A named tool's call finishes with `ToolCalls`.** vLLM finishes it with
+  `stop` on the wire, as OpenAI has been reported to; svir 0.1.6 reads the
+  calls and makes the finish `ToolCalls` (0.1.5 failed it with `Protocol`).
 * **Not checked.** A server may take the choice and not keep it: LM Studio
-  accepts `Required` and can answer with text and no call. Test
+  accepts `Required` and can answer with text and no call, llama.cpp does not
+  keep a named tool, and mlx-lm reads no tool choice at all. Test
   `done.calls`, as the loop does; never assume the call is there.
 * **The choice stays on the request.** In a loop, a model required to call a
   tool on every turn never answers. Once it has called, set it back:

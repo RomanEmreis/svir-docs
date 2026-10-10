@@ -12,7 +12,7 @@ hyper, ни Tokio.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.5", default-features = false }
+svir = { version = "0.1.6", default-features = false }
 ```
 
 Если единственная причина — другой HTTP-клиент, то

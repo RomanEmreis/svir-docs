@@ -73,7 +73,7 @@ argument type, doc comments included.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.5", features = ["schemars"] }
+svir = { version = "0.1.6", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -242,10 +242,17 @@ fn classify(ticket: &str) -> Request {
   [compatibility handling](../client/configuration#compatibility-handling)
   keeps it, and a server that does not take it fails the request with
   `Unsupported` and its own words. LM Studio rejects a tool named in the
-  choice; with that one tool offered, `Required` asks the same.
+  choice; with that one tool offered, `Required` asks the same. vLLM takes a
+  choice only when started with a tool-call parser
+  (`--enable-auto-tool-choice --tool-call-parser ...`); without one, a
+  request with tools fails with `400` unless its choice is `None`.
+- **A call of a named tool finishes with `ToolCalls`.** vLLM finishes it with
+  `stop` on the wire, as OpenAI has been reported to; svir reads the calls and
+  makes the finish `ToolCalls`, as for `Auto` and `Required`.
 - **The answer is not checked against the choice.** A server may take it and
   not keep it: LM Studio accepts `Required` and can answer with text and no
-  call. `done.calls` says what the model called.
+  call, llama.cpp does not keep a named tool, and mlx-lm reads no tool choice
+  at all. `done.calls` says what the model called.
 - **In a loop, the choice stays on the request.** A model required to call a
   tool on every turn never gets to answer. Once it has called, set the choice
   back with the results:

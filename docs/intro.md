@@ -12,13 +12,13 @@ wire protocol between your application and a model server, and nothing it does
 not need.
 
 It speaks **OpenAI-compatible Chat Completions, always streamed**, as served by
-LM Studio, llama.cpp, vLLM, mlx-lm, Azure OpenAI, and hosted endpoints.
+LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, Azure OpenAI, and hosted endpoints.
 
 :::warning[Preview]
 svir is in preview. The public API may still change between `0.x` releases.
 What changed is in the
 [changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md). This
-site describes **svir 0.1.5**.
+site describes **svir 0.1.6**.
 :::
 
 ## Install
@@ -35,7 +35,7 @@ Or by hand:
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = "0.1.5"
+svir = "0.1.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

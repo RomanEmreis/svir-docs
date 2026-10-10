@@ -97,13 +97,13 @@ python3 ci/check-snippets.py --docs-dir skill
 
 ## Версия {/* #version */}
 
-Скилл соответствует svir **0.1.5**: OpenAI-совместимый Chat Completions,
+Скилл соответствует svir **0.1.6**: OpenAI-совместимый Chat Completions,
 потоком. Это записано во frontmatter, чтобы ассистент мог понять, подходит ли
 скилл к крейту перед ним:
 
 ```yaml
 metadata:
-  svir-version: "0.1.5"
+  svir-version: "0.1.6"
   msrv: "1.85"
   wire-api: "OpenAI-compatible Chat Completions, streaming"
 ```

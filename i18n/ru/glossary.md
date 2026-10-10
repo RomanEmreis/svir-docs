@@ -22,6 +22,8 @@
 | escaped length | длина после экранирования | Длина текста, экранированного в JSON-строку; `TextFile::escaped_len` |
 | reasoning | рассуждения | Ход мысли модели (reasoning) |
 | reasoning effort | глубина рассуждений | `Effort` |
+| reasoning parser | парсер рассуждений | Часть сервера, которая отделяет рассуждения от ответа (`--reasoning-parser` у vLLM) |
+| chat template | шаблон чата | Шаблон модели, который собирает промпт из сообщений |
 | usage | расход токенов | `Usage` |
 | finish reason | причина завершения | `FinishReason` |
 | refusal | отказ | Отказ модели отвечать; `FinishReason::Refusal` |

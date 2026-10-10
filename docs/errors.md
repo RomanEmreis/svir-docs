@@ -92,8 +92,18 @@ async fn ask(client: &Client, request: &Request) -> Next {
 
 ## The server's own message
 
-`error.server_message()` is what the server said: an `error.message` from a
-JSON body, a plain-text body, or a message inside the stream, cut to 4 KiB.
+`error.server_message()` is what the server said, cut to 4 KiB:
+
+- `error.message` from a JSON body, or `error` itself when it is a string;
+- `detail`, when a JSON body has no `error`, as servers built on FastAPI
+  (mlx-vlm among them) report errors; when it is a list of validation errors,
+  the first one's `msg`;
+- a plain-text body;
+- a message inside the stream.
+
+A rejected request (400, 413, or 422) or an error inside the stream is
+`ContextOverflow` when its code names an overflow, or its message speaks of
+the context's length, size, window, or budget, or of compacted context.
 
 It is kept out of `Display` and `Debug` on purpose. A server's message can
 quote the prompt, a file name, or an internal address, and those do not belong

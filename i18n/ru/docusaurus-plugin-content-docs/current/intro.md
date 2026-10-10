@@ -11,15 +11,15 @@ svir — маленький компонуемый Rust SDK для общени�
 моделями: протокол обмена между вашим приложением и сервером модели — и ничего
 лишнего.
 
-Он говорит на **OpenAI-совместимом Chat Completions, всегда потоком** — так,
-как его отдают LM Studio, llama.cpp, vLLM, mlx-lm, Azure OpenAI и облачные
+Он говорит на **OpenAI-совместимом Chat Completions, всегда потоком** — так, как
+его отдают LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, Azure OpenAI и облачные
 эндпоинты.
 
 :::warning[Предварительная версия]
 svir находится в стадии preview. Публичный API ещё может меняться между
 релизами `0.x`. Что изменилось — в
 [журнале изменений](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md).
-Этот сайт описывает **svir 0.1.5**.
+Этот сайт описывает **svir 0.1.6**.
 :::
 
 ## Установка {/* #install */}
@@ -36,7 +36,7 @@ cargo add tokio --features macros,rt-multi-thread
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = "0.1.5"
+svir = "0.1.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

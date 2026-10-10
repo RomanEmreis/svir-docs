@@ -322,7 +322,7 @@ build already has:
 
 ```toml
 [dependencies]
-svir = { version = "0.1.5", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.6", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 The other fix is in the code that relies on the default: pass a provider

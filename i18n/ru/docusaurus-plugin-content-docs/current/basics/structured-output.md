@@ -12,7 +12,7 @@ JSON по схеме. Ответ приходит текстом, как люб�
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.5", features = ["schemars"] }
+svir = { version = "0.1.6", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -101,8 +101,9 @@ fn weather(city: &str) -> Request {
   `additionalProperties: false`. Схема, выведенная из типа, подходит, когда у
   каждой структуры в ней есть `#[serde(deny_unknown_fields)]` и нет полей
   `Option`: schemars не включает `Option` в `required`.
-- **Локальные серверы** (LM Studio, llama.cpp) ограничивают сэмплирование
-  схемой — строгой или нет.
+- **Локальные серверы** (LM Studio, llama.cpp, vLLM, mlx-vlm) ограничивают
+  сэмплирование схемой — строгой или нет. mlx-lm формат ответа не читает
+  вовсе: он отвечает свободным текстом, и `parse` падает.
 
 svir не переписывает выведенную схему под эти требования: переписанная, она
 перестала бы говорить то, что говорит тип.
