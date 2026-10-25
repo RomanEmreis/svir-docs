@@ -12,7 +12,7 @@ JSON по схеме. Ответ приходит текстом, как люб�
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.6", features = ["schemars"] }
+svir = { version = "0.1.7", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```

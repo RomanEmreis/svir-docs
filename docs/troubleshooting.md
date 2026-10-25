@@ -66,10 +66,11 @@ What a symptom usually means. For what each error kind is, see
 | Symptom | Usual cause |
 |---|---|
 | `done.usage` is `None` | The server does not report usage, or it rejected the field and the client stopped asking |
-| `Effort` stops changing anything, and `done.usage` is `None`, on vLLM | The chat template rejected the effort (Qwen3.8's has no `High`), and the client stopped sending the optional fields. Use an effort the template names; a new client sends them again |
+| `Effort` stops changing anything, and `done.usage` is `None`, on vLLM | The chat template rejected the effort (Qwen3.8's has no `High`), and the client stopped sending the optional fields. Use an effort the template names; a new client sends them again. With `.lean_retry(false)` the `400` is the error instead, and its message names the levels |
 | `done.text` starts with blank lines | The server left them after the reasoning. Trim for display |
 | `done.text` holds the reasoning, then `</think>` and the answer | The server has no reasoning parser, and the model's chat template opens `<think>` in the prompt. Turn the parser on: `--reasoning-parser` for vLLM |
 | `done.text` is empty and `finish` is `Length` | Reasoning used the whole output budget. Raise `max_tokens`, or lower the effort |
+| `finish` is `Length`, `done.calls` is empty, and `done.cut_calls` is not | The output limit cut the model off while it wrote tool calls. Raise `max_tokens`; the cut calls are for display, not to run |
 | `done.text` is empty and `finish` is `ToolCalls` | Not a failure: the model is waiting for tool results |
 | `finish` is `ContentFilter`, though the whole answer streamed | Azure's asynchronous content filter vets the answer after streaming it, and blocked part of it. Withdraw the text the user was shown |
 | `finish` is `Refusal` | The model would not answer, and `done.text` is its refusal: show it. Asked for a format, OpenAI's models refuse rather than give an answer they will not put in it |

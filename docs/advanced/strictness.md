@@ -35,9 +35,11 @@ fn lenient() -> Result<Client, Error> {
 | A finish reason svir does not know, or content after the finish reason | `Unsupported` | `Unsupported` |
 
 Both modes enforce the [limits](#limits), fail a stream that ends early, and
-refuse tool calls that are inconsistent: missing or duplicate IDs, a gap in
-the indices, a `tool_calls` finish with no calls, or calls with a
-`content_filter` finish. Calls with a `stop` finish are an answer of calls,
+refuse tool calls that are inconsistent: a missing ID or name, duplicate IDs,
+a gap in the indices, a `tool_calls` finish with no calls, or calls with a
+`content_filter` finish. With a `length` finish a call may lack its ID or
+name, since the output limit cut it short: it is kept in `cut_calls`, not
+refused. Calls with a `stop` finish are an answer of calls,
 and the finish is `ToolCalls`: vLLM finishes a call of a named tool that way,
 as OpenAI has been reported to.
 

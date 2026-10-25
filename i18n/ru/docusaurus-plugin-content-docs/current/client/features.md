@@ -63,7 +63,7 @@ CryptoProvider available».
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.6", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.1.7", default-features = false, features = ["client", "tls-aws-lc"] }
 ```
 
 Другой способ — исправить код, который полагается на умолчание: передать
@@ -72,7 +72,7 @@ svir = { version = "0.1.6", default-features = false, features = ["client", "tls
 
 ## Версии {/* #versions */}
 
-Этот сайт описывает svir **0.1.6**. В пределах 0.1 более поздние релизы
+Этот сайт описывает svir **0.1.7**. В пределах 0.1 более поздние релизы
 ставятся без изменений кода; чего нет в более ранних:
 
 | Зафиксирована | Чего нет |
@@ -83,6 +83,7 @@ svir = { version = "0.1.6", default-features = false, features = ["client", "tls
 | 0.1.3 | `ToolResult::error` и `is_error` (неудачный вызов был текстом `error: ` в содержимом), `ClientBuilder::header` и `TextFile::escaped_len` |
 | 0.1.4 | `Request::tool_choice`, `Request::response_format` со `Schema`, `Completion::parse` и `FinishReason::Refusal` (отказ был `Unsupported` в строгом режиме и отбрасывался в мягком, оставляя ответ без текста) |
 | 0.1.5 | Однократного чтения рассуждений, присланных и в `reasoning_content`, и в `reasoning` (у mlx-vlm они приходили дважды), вызова именованного инструмента, завершённого со `stop` (был `Protocol`), и сообщения сервера из тела с `detail` вместе с переполнениями контекста, о которых так сообщает mlx-vlm (были `Unsupported`) |
+| 0.1.6 | `Effort::Minimal` и `Effort::Max`, `Completion::cut_calls` (при завершении `Length` вызовы, которые могли быть обрезаны, лежали в `calls`, а вызов без ID или имени был `Protocol`) и `ClientBuilder::lean_retry` |
 
 Одно изменение в 0.1.4 может проявиться в коде, написанном для 0.1.3: сбой из
 `Tools` помечается флагом `is_error`, и его `content` больше не начинается с
@@ -100,6 +101,14 @@ svir = { version = "0.1.6", default-features = false, features = ["client", "tls
 был `Protocol`. Рассуждения, которые mlx-vlm присылает и в
 `reasoning_content`, и в `reasoning`, — теперь одна запись с источником
 `ReasoningContent`, а не две.
+
+Одно изменение в 0.1.7 может проявиться в коде, написанном для 0.1.6: при
+завершении `Length` поле `calls` пусто, а вызовы, которые оборвал лимит
+вывода, лежат в `cut_calls`. Код, который выполняет `calls`, не проверив
+причину завершения, выполнял вызовы, которые могли быть обрезаны; теперь для
+такого ответа он не выполняет ничего. Ещё 0.1.7 требует `rustls` не ниже
+0.23.46 и `tokio` не ниже 1.53.3 — ради уязвимостей, исправленных в этих
+версиях; `cargo update` их подтянет.
 
 Подробности — в
 [журнале изменений](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md).

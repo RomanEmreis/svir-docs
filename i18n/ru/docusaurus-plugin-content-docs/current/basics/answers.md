@@ -78,7 +78,8 @@ async fn show(client: &Client, request: &Request) -> Result<Completion, Error> {
 | `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, `ContentFilter` или `Refusal` |
 | `text` | `String` | Ответ — ровно в том виде, в каком пришёл |
 | `reasoning` | `Vec<Reasoning>` | Рассуждения, по записи на каждый источник |
-| `calls` | `Vec<ToolCall>` | Полные вызовы инструментов, по порядку |
+| `calls` | `Vec<ToolCall>` | Полные вызовы инструментов, по порядку. Пуст при завершении `Length` |
+| `cut_calls` | `Vec<ToolCallDelta>` | При завершении `Length` — вызовы, которые оборвал лимит вывода, в том виде, в каком успели прийти. Не для выполнения |
 | `usage` | `Option<Usage>` | Расход токенов, если сервер его сообщил |
 | `timing` | `Option<Timing>` | Когда пришли первый и последний видимые токены |
 
@@ -93,7 +94,8 @@ fn describe(done: &Completion) -> &'static str {
         // Run the tools in `done.calls` and ask again; see Tools.
         FinishReason::ToolCalls => "the model is waiting for tool results",
         // The output limit cut it off. With a reasoning model the text can be
-        // empty: the reasoning used the budget. Raise `max_tokens`.
+        // empty: the reasoning used the budget. Raise `max_tokens`. Calls it
+        // began are in `done.cut_calls`, never to run.
         FinishReason::Length => "the answer was cut off",
         // The server's content filter stopped it, or flagged it after it was
         // streamed. `done.text` holds what was sent, which may be what was
@@ -113,6 +115,13 @@ fn describe(done: &Completion) -> &'static str {
 Текст перед блокировкой может содержать заблокированное и в обычном режиме
 Azure. Поэтому код, который показывает дельты по мере прихода, при такой
 причине завершения убирает текст, а не оставляет его с пометкой.
+
+Завершение `Length` может оборвать вызовы инструментов: их аргументы, имя и
+даже ID. Тогда `calls` пуст, а каждый начатый вызов лежит в `cut_calls`: это
+`ToolCallDelta` с индексом, с ID и именем, только если они пришли, и с
+аргументами в том виде, в каком пришли. Показывайте или записывайте их, но не
+выполняйте. `request.assistant(done)` их не включает, так что следующим
+запросом можно попросить модель продолжить.
 
 Завершение `Refusal` значит, что модель отказалась отвечать, а текст — это её
 отказ. Chat Completions присылает отказ в отдельном поле вместо ответа; svir

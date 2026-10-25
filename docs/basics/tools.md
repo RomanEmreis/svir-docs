@@ -73,7 +73,7 @@ argument type, doc comments included.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.6", features = ["schemars"] }
+svir = { version = "0.1.7", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -160,7 +160,8 @@ the user's message. Four things keep the loop correct:
 - **Every call gets a result.** A model can ask for several tools at once;
   `call_all` answers them all, in order.
 - **Test `calls`, not `finish`.** An answer cut off by the output limit is
-  `FinishReason::Length` with no calls, and ends the loop as an answer.
+  `FinishReason::Length` with no calls, and ends the loop as an answer. The
+  calls it began are in `cut_calls`, never to run.
 - **The bound is yours.** A model can call tools forever. So is what happens at
   the bound.
 
