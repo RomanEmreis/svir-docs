@@ -76,7 +76,7 @@ doc-комментарии.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.6", features = ["schemars"] }
+svir = { version = "0.1.7", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -165,6 +165,7 @@ async fn run(client: &Client, tools: &Tools, mut request: Request) -> Result<Com
   инструментов сразу; `call_all` отвечает на все, по порядку.
 - **Проверяйте `calls`, а не `finish`.** Ответ, обрезанный лимитом вывода, —
   это `FinishReason::Length` без вызовов, и он завершает цикл как ответ.
+  Вызовы, которые он начал, лежат в `cut_calls` и не выполняются.
 - **Ограничение — ваше.** Модель может вызывать инструменты бесконечно. И что
   делать, упёршись в ограничение, тоже решаете вы.
 

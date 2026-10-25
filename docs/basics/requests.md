@@ -99,9 +99,12 @@ Images and text files are covered in [Attachments](./attachments).
 
 ## Reasoning effort
 
-`Effort` is `Off`, `Low`, `Medium`, `High`, or `XHigh`. Unset sends nothing
-and leaves the choice to the server. `Off` asks for no reasoning; whether the
-model obeys is up to the model.
+`Effort` is `Off`, `Minimal`, `Low`, `Medium`, `High`, `XHigh`, or `Max`.
+`Max` is as much as the model offers, and `XHigh` the level below it. Unset
+sends nothing and leaves the choice to the server. `Off` asks for no
+reasoning; whether the model obeys is up to the model. A level is sent as
+set, by its Chat Completions name, and never moved to one the server takes:
+which levels a model takes is the model's.
 
 ```rust
 use svir::prelude::*;
@@ -123,7 +126,10 @@ is remembered. See
 vLLM hands the effort to the model's chat template, which may name only some
 of the values: Qwen3.8's rejects `High` with `400`. The request is then sent
 without the optional fields, and the client stops sending them to that
-server, usage included. Pick an effort the template names.
+server, usage included. Pick an effort the template names. Code that records
+the effort it asked with can
+[turn that off](../client/configuration#turning-it-off) and have the `400`,
+whose message names the levels the template takes.
 
 The reasoning itself comes back as `Event::Reasoning` while the answer streams,
 and in `Completion::reasoning` at the end; see

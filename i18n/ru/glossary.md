@@ -31,6 +31,7 @@
 | annotation | аннотация | Вердикт асинхронного контент-фильтра Azure по уже отправленному тексту |
 | tool | инструмент | Функция, которую модель может вызвать |
 | tool call | вызов инструмента | `ToolCall` |
+| cut call | обрезанный вызов | Вызов, который оборвал лимит вывода; `Completion::cut_calls`, не для выполнения |
 | tool result | результат инструмента | `ToolResult` |
 | failed result | неудачный результат | `ToolResult::error`, флаг `is_error` |
 | tool choice | выбор инструмента | `ToolChoice`, `Request::tool_choice` |
@@ -57,6 +58,7 @@
 | proxy | прокси | |
 | relay | ретрансляция | Передача байтов сервера дальше без изменений |
 | compatibility handling | обработка совместимости | Запоминание полей, которые сервер отвергает |
+| lean retry | повтор без необязательных полей | Вторая попытка обработки совместимости; `ClientBuilder::lean_retry` |
 | crypto provider | криптопровайдер | ring или aws-lc-rs |
 | feature (Cargo) | фича | Фича Cargo: `client`, `tls`, `schemars`… |
 | loopback | loopback | Не переводится |

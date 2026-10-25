@@ -78,7 +78,8 @@ can be moved into a task or kept in a struct. It also implements
 | `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, `ContentFilter`, or `Refusal` |
 | `text` | `String` | The answer, exactly as sent |
 | `reasoning` | `Vec<Reasoning>` | Reasoning, one entry per source |
-| `calls` | `Vec<ToolCall>` | Complete tool calls, in order |
+| `calls` | `Vec<ToolCall>` | Complete tool calls, in order. Empty with a `Length` finish |
+| `cut_calls` | `Vec<ToolCallDelta>` | With a `Length` finish, the calls the output limit cut off, as far as they arrived. Never to run |
 | `usage` | `Option<Usage>` | Token counts, when the server reported them |
 | `timing` | `Option<Timing>` | When the first and last visible tokens arrived |
 
@@ -93,7 +94,8 @@ fn describe(done: &Completion) -> &'static str {
         // Run the tools in `done.calls` and ask again; see Tools.
         FinishReason::ToolCalls => "the model is waiting for tool results",
         // The output limit cut it off. With a reasoning model the text can be
-        // empty: the reasoning used the budget. Raise `max_tokens`.
+        // empty: the reasoning used the budget. Raise `max_tokens`. Calls it
+        // began are in `done.cut_calls`, never to run.
         FinishReason::Length => "the answer was cut off",
         // The server's content filter stopped it, or flagged it after it was
         // streamed. `done.text` holds what was sent, which may be what was
@@ -113,6 +115,13 @@ block afterwards, even after the model's own `stop`; svir makes that the
 finish. Text before a block may hold what was blocked in Azure's default mode
 too. So code that shows the deltas as they arrive takes the text down on this
 finish, rather than leaving it up with a note.
+
+A `Length` finish can cut tool calls short: their arguments, their name, even
+their ID. `calls` is then empty, and each call the answer began is in
+`cut_calls`: a `ToolCallDelta` with its index, its ID and name only if they
+arrived, and its arguments as received. Show or record them; do not run them.
+`request.assistant(done)` leaves them out, so the next request can ask the
+model to go on.
 
 A `Refusal` finish means the model would not answer, and the text is its
 refusal. Chat Completions sends a refusal in a field of its own, in place of

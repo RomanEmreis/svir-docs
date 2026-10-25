@@ -18,7 +18,7 @@ LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, Azure OpenAI, and hosted endpoints.
 svir is in preview. The public API may still change between `0.x` releases.
 What changed is in the
 [changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md). This
-site describes **svir 0.1.6**.
+site describes **svir 0.1.7**.
 :::
 
 ## Install
@@ -35,7 +35,7 @@ Or by hand:
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = "0.1.6"
+svir = "0.1.7"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
@@ -103,8 +103,9 @@ The core is the protocol:
 - **Transport**: HTTP with optional Bearer authentication, typed status
   mapping, timeouts, and cancellation by drop.
 - **Compatibility**: a server that rejects optional fields such as
-  `reasoning_effort` is detected once and remembered. What the answer must
-  meet, a tool choice or a response format, is never dropped.
+  `reasoning_effort` is detected once and remembered, unless the caller turns
+  that off. What the answer must meet, a tool choice or a response format, is
+  never dropped.
 
 On top of it, opt-in:
 
