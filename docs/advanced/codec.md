@@ -7,12 +7,14 @@ description: Encoder and Decoder without the svir client, for a transport of you
 # The codec alone
 
 `Encoder` and `Decoder` are what the client is built from, and they are
-public. With `default-features = false`, svir is only the types and the codec:
-no client, no hyper, no Tokio.
+public: one pair for each wire API, in `svir::openai::chat` and
+`svir::anthropic::messages`, with the same calls. With
+`default-features = false`, svir is only the types and the codecs: no client,
+no hyper, no Tokio.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.7", default-features = false }
+svir = { version = "0.2", default-features = false }
 ```
 
 If the only reason is a different HTTP client, a
@@ -51,6 +53,9 @@ fn decode() -> Result<Option<Completion>, Error> {
     Ok(answer)
 }
 ```
+
+The Messages decoder, `svir::anthropic::messages::Decoder`, is driven the same
+way, with the API's named events as input.
 
 | Call | Does |
 |---|---|
@@ -93,9 +98,10 @@ fn encode(request: &Request) -> Result<(u64, bytes::Bytes), Error> {
 | Call | Does |
 |---|---|
 | `Encoder::new()` | Sends what the request sets and nothing else |
-| `.include_usage(bool)` | Asks for token counts when the request does not say. Off here; the client turns it on |
-| `.lean(bool)` | Leaves out `reasoning_effort` and `stream_options`, for a server known to reject them. A tool choice and a response format stay |
-| `.context_tokens(n)` | Fails with `ContextOverflow` when the body length plus `max_tokens` does not fit |
+| `.include_usage(bool)` | Chat Completions only. Asks for token counts when the request does not say. Off here; the client turns it on |
+| `.lean(bool)` | Chat Completions only. Leaves out `reasoning_effort` and `stream_options`, for a server known to reject them. A tool choice and a response format stay |
+| `.context_tokens(n)` | Fails with `ContextOverflow` when the estimate plus `max_tokens` does not fit; see [context admission](../basics/attachments#context-admission) |
+| `.image_tokens(n)` | The most one image counts for in that estimate. 16384 by default |
 | `encode(&request)` | No I/O. An attachment held as a file path is `ErrorKind::Attachment`; a tool call required that the request cannot make is `Unsupported` |
 | `encode_files(&request).await` | Feature `client`. Measures file attachments first, so that the length is exact; a text file with a declared `escaped_len` is not read |
 | `body.len()` | The `Content-Length` to send |
@@ -109,7 +115,8 @@ is not a stream.
 
 Without the client, the transport has to do what the client does:
 
-1. `POST {base}/v1/chat/completions` with `content-type: application/json`,
+1. `POST {base}/v1/chat/completions`, or `{base}/v1/messages` with
+   `anthropic-version: 2026-10-21`, with `content-type: application/json`,
    `accept: text/event-stream`, the `Authorization` header if there is a key,
    and `Content-Length` from `body.len()`.
 2. Treat any status other than success as an error before decoding. svir's

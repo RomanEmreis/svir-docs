@@ -20,11 +20,14 @@ backend, and tests that need no server.
 
 ## The builder
 
-`Client::openai(url)` returns a `ClientBuilder`; every method takes `self`
-and returns it; `build()` returns `Result<Client, Error>`.
+`Client::openai(url)` and `Client::anthropic()` (svir 0.2) return a
+`ClientBuilder`; every method takes `self` and returns it; `build()` returns
+`Result<Client, Error>`. The builder is the same for both wire APIs; what
+differs for the Messages API is in `anthropic.md`.
 
 | Method | Effect | Default |
 |---|---|---|
+| `base_url(url)` | Where the server is, in place of the constructor's (svir 0.2) | The constructor's |
 | `api_key(key)` / `api_key_env(name)` / `api_key_file(path)` | Bearer authentication | None |
 | `header(name, value)` | A header sent with every request, for a gateway or a hosted endpoint | None |
 | `allow_http()` | Plain HTTP to a host that is not loopback | Refused |
@@ -35,6 +38,7 @@ and returns it; `build()` returns `Result<Client, Error>`.
 | `limits(Limits)` | Bounds on one response | 64 MiB, 256 KiB per event, 64 tool calls |
 | `think(Think)` | What to do with inline `<think>` tags | Split into reasoning |
 | `context_tokens(n)` | Refuse a request that cannot fit, before sending it | Off |
+| `image_tokens(n)` | The most one image counts for in that check (svir 0.2) | 16384 |
 | `http(backend)` | Another HTTP backend | hyper |
 | `layer(l)` / `wrap(closure)` | Middleware around every call | None |
 
@@ -58,22 +62,29 @@ fn client() -> Result<Client, Error> {
 the connection pool and what was learned about the server. Its `Debug` shows
 the URL and never the key or a header's value.
 
-`context_tokens(n)` counts the request body's bytes as tokens, which never
-underestimates text but overestimates images by far. With image attachments,
-leave it off.
+`context_tokens(n)` refuses a request whose estimate plus `max_tokens` does
+not fit. The estimate is the body's bytes, which never underestimates text,
+with each image counted as its base64 length but no more than `image_tokens`
+(16384 by default, the most the common open vision encoders make of one
+image). A hosted model charges far less per image, roughly 1,500 to 5,000:
+set `image_tokens` to its figure. On svir 0.1, an image counted as all its
+bytes: leave `context_tokens` off with images there.
 
 ## The base URL
 
 Pass the server's base, with or without `/v1` and a trailing slash; svir
-appends `/v1/chat/completions` and `/v1/models`. A path in front is kept:
+appends `/v1/chat/completions` for Chat Completions, `/v1/messages` for the
+Messages API, and `/v1/models`. A path in front is kept:
 `http://host/openai/v1` calls `http://host/openai/v1/chat/completions`.
+`Client::anthropic()` starts at `https://api.anthropic.com`; `base_url` points
+it at another server with a Messages endpoint.
 
 `build()` fails with `ErrorKind::Config` for:
 
 | The URL | Why |
 |---|---|
 | `http://` to a host that is not loopback | Keys and prompts would cross the network in the clear. Use `https://`, or `.allow_http()` for a trusted network |
-| `https://` without the `tls` or the `tls-aws-lc` feature | Neither is on |
+| `https://` without the `tls-ring` or the `tls-aws-lc` feature | Neither is on; the default build has no TLS (svir 0.2) |
 | Credentials, a query, or a fragment in the URL | A key belongs in `api_key`, not in the URL |
 | No scheme (`127.0.0.1:1234`) | Write `http://127.0.0.1:1234` |
 
@@ -119,7 +130,8 @@ fn client() -> Result<Client, Error> {
   name, a value with a line break, another control character, or text that
   is not ASCII, and the headers svir writes itself or that frame the
   request: `authorization`, `content-type`, `content-length`, `accept`,
-  `host`, `transfer-encoding`, `connection`. **The Bearer key goes through
+  `host`, `transfer-encoding`, `connection`, and `anthropic-version`
+  (svir 0.2). **The Bearer key goes through
   `api_key`, never `.header("authorization", ..)`.** A key a gateway wants
   under another name, `api-key` or `x-api-key`, goes through `header`.
 * The headers are the client's, the same on every request. There are no
@@ -155,7 +167,8 @@ async fn models(client: &Client) -> Result<Vec<String>, Error> {
 
 The listing is what the server reports, unfiltered: embedding and speech
 models are in it next to chat models. `Model` has `id` and an optional
-`name`.
+`name`. From the Messages API it is every page, and `name` is the model's
+`display_name`.
 
 ## Layers
 
@@ -282,6 +295,8 @@ cannot rewrite events.
 
 ## Compatibility handling
 
+This is Chat Completions only: a Messages client sends each request once.
+
 Some servers reject optional fields, `reasoning_effort` and `stream_options`,
 with a 400 or 422. The client then sends the request once more without them,
 and remembers: later requests of this client and its clones leave them out
@@ -323,25 +338,26 @@ that the fields were left out.
 
 ## TLS and the crypto provider
 
-HTTPS is rustls with the webpki roots and HTTP/2 by ALPN. The crypto provider
-is a feature:
+The default build has no TLS (svir 0.2): plain HTTP is all a server on
+loopback needs. HTTPS is rustls with the webpki roots and HTTP/2 by ALPN, with
+the crypto provider the build chooses:
 
 | Feature | Provider |
 |---|---|
-| `tls` (default) | ring. Builds without a C toolchain everywhere |
+| `tls-ring` | ring. Builds without a C toolchain everywhere |
 | `tls-aws-lc` | aws-lc-rs. With both features on, this one is used |
-
-svir passes its provider to rustls explicitly, so it works with either. The
-choice matters to the rest of the build: rustls picks a process-wide default
-provider only when exactly one is compiled in. If another dependency brings
-aws-lc-rs (reqwest can), svir's `tls` adds ring, and code that relies
-on the default (`ClientConfig::builder()`) panics. Take the provider the
-build already has:
 
 ```toml
 [dependencies]
-svir = { version = "0.1.7", default-features = false, features = ["client", "tls-aws-lc"] }
+svir = { version = "0.2", features = ["tls-ring"] }
 ```
+
+On svir 0.1 the feature was `tls`, on by default; `tls-ring` does not exist
+there. svir passes its provider to rustls explicitly, so it works with either.
+The choice matters to the rest of the build: rustls picks a process-wide
+default provider only when exactly one is compiled in. If another dependency
+brings aws-lc-rs (reqwest can), take `tls-aws-lc`; with ring added, code that
+relies on the default (`ClientConfig::builder()`) panics.
 
 The other fix is in the code that relies on the default: pass a provider
 there too, or install one at startup with `CryptoProvider::install_default`.

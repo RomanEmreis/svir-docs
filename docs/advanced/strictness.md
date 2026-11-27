@@ -60,6 +60,25 @@ and both modes read them the same way:
   model's own `stop`. Any other finish reason in an annotation is
   `Unsupported`.
 
+### The Messages API
+
+The Messages API promises to add event types and fields, and asks clients to
+skip what they do not know, so its decoder reads past them in both modes:
+
+| The Messages API sends | Strict | Lenient |
+|---|---|---|
+| An event type svir does not know, or a field added to a known event | Skipped | Skipped |
+| A content block type or a delta type svir does not know | `Unsupported` | Skipped |
+| Data that is not JSON, or invalid UTF-8 | `Protocol` | Skipped, or replaced lossily |
+| A second `message_start`, or blocks before the first | `Protocol` | Tolerated |
+| A delta for a block that is not open, or of the wrong type for it, or a block out of order | `Protocol` | `Protocol` |
+| A stop reason svir does not know, `pause_turn` included | `Unsupported` | `Unsupported` |
+
+Its stop reasons map to the same finishes: `end_turn` and `stop_sequence` are
+`Stop`, `max_tokens` and `model_context_window_exceeded` are `Length`,
+`tool_use` is `ToolCalls`, and `refusal` is `Refusal`. Tool calls are held to
+the same rules as in Chat Completions.
+
 ### Which to choose
 
 - **Strict** for a server under your control, and to find out what a new

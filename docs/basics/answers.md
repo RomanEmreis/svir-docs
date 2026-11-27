@@ -29,7 +29,7 @@ the stream itself, so no `StreamExt` import is needed.
 | Event | Carries | Meaning |
 |---|---|---|
 | `Event::Text(String)` | A piece of the answer | Show it |
-| `Event::Reasoning(Reasoning)` | `source`, `text` | A piece of the model's reasoning; show it apart from the answer |
+| `Event::Reasoning(Reasoning)` | `source`, `text` | A piece of the model's reasoning; show it apart from the answer. It may be empty, which shows nothing |
 | `Event::ToolCallDelta(ToolCallDelta)` | `index`, `id`, `name`, `arguments` | A piece of a tool call, for display only |
 | `Event::Completed(Completion)` | The whole answer | Always the last item |
 
@@ -77,9 +77,10 @@ can be moved into a task or kept in a struct. It also implements
 |---|---|---|
 | `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, `ContentFilter`, or `Refusal` |
 | `text` | `String` | The answer, exactly as sent |
-| `reasoning` | `Vec<Reasoning>` | Reasoning, one entry per source |
+| `reasoning` | `Vec<Reasoning>` | Reasoning: one entry per source from Chat Completions, one per thinking block from the Messages API |
 | `calls` | `Vec<ToolCall>` | Complete tool calls, in order. Empty with a `Length` finish |
 | `cut_calls` | `Vec<ToolCallDelta>` | With a `Length` finish, the calls the output limit cut off, as far as they arrived. Never to run |
+| `parts` | `Vec<Part>` | The text, reasoning, and calls in the order they arrived, from the Messages API; empty from Chat Completions, whose order is always reasoning, text, calls |
 | `usage` | `Option<Usage>` | Token counts, when the server reported them |
 | `timing` | `Option<Timing>` | When the first and last visible tokens arrived |
 
@@ -129,7 +130,9 @@ the answer; svir streams it as `Event::Text` like any answer, so a chat shows
 it with no code of its own. OpenAI's models refuse above all when asked for an
 answer in a format they will not give; see
 [Structured output](./structured-output#refusals). A refusal the content
-filter stopped is `ContentFilter`.
+filter stopped is `ContentFilter`. The Messages API ends a declined answer with
+a stop reason of its own, `refusal`, which is this finish too, with the text
+that streamed before it kept.
 
 An answer asked for as JSON is read into a type with `done.parse::<T>()`,
 which parses only an answer that finished with `Stop`; see
@@ -140,14 +143,20 @@ starts the answer with blank lines: trim for display, store as is.
 
 ## Reasoning
 
-Servers carry reasoning in three ways, and svir reads all of them into
-`Reasoning { source, text }`:
+Servers carry reasoning in several ways, and svir reads all of them into
+`Reasoning { source, text, signature }`:
 
 | `ReasoningSource` | Where it was |
 |---|---|
 | `ReasoningContent` | The `reasoning_content` field, or the same text in both `reasoning_content` and `reasoning`, as mlx-vlm sends it |
 | `Reasoning` | The `reasoning` field |
 | `Think` | `<think>...</think>` inside the answer text |
+| `Thinking` | A thinking block of the Messages API, with its `signature` |
+| `RedactedThinking` | A redacted thinking block of the Messages API: no text, and its encrypted data in `signature` |
+
+`signature` is what the server needs back with the reasoning, unchanged. It is
+opaque: keep it, never show it. A thinking block's text may be empty, when the
+server hides it; a redacted block shows nothing and emits no event.
 
 Inline `<think>` tags are split out of the text by default, so reasoning is not
 shown as the answer even when the server has no reasoning parser. A tag cut in
@@ -160,9 +169,10 @@ sends the reasoning as the answer, ending in a lone `</think>`; by the time it
 arrives, the reasoning has streamed as text. Turn the server's parser on:
 vLLM's `--reasoning-parser`, or llama.cpp's default `--reasoning-format`.
 
-`Completion::reasoning` has one entry per source, in order of first
-appearance, with the pieces joined. Reasoning goes to the user as reasoning,
-never as the answer.
+From Chat Completions, `Completion::reasoning` has one entry per source, in
+order of first appearance, with the pieces joined; from the Messages API, one
+entry per block. Reasoning goes to the user as reasoning, never as the answer.
+How it goes back to the server is on [Conversations](./conversations).
 
 ## Usage and speed
 

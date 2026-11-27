@@ -1,12 +1,12 @@
 ---
 name: svir
-description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, hosted endpoints), tool calling and the loop that feeds results back, a tool call required or forbidden, structured output (JSON to a schema, parsed into a type), image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions codec on its own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools, get JSON out of it or relay its stream from Rust through an OpenAI-compatible endpoint, and when reviewing or debugging such code.
+description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, hosted endpoints) and from the Anthropic Messages API (Claude, with signed thinking sent back), tool calling and the loop that feeds results back, a tool call required or forbidden, structured output (JSON to a schema, parsed into a type), image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions and Messages codecs on their own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools, get JSON out of it or relay its stream from Rust through an OpenAI-compatible endpoint or the Anthropic API, when upgrading svir, and when reviewing or debugging such code.
 license: MIT OR Apache-2.0
 metadata:
-  svir-version: "0.1.7"
+  svir-version: "0.2.0"
   msrv: "1.85"
   edition: "2024"
-  wire-api: "OpenAI-compatible Chat Completions, streaming"
+  wire-api: "OpenAI-compatible Chat Completions and Anthropic Messages, streaming"
   api-reference: "https://docs.rs/svir"
   repository: "https://github.com/RomanEmreis/svir"
 ---
@@ -20,8 +20,10 @@ servers need. Layers (middleware) and tool sets sit on top, opt-in. It is
 storage, and no MCP. Those are a few lines of the caller's code, and this
 skill shows them.
 
-**This skill describes svir 0.1.x, which speaks one wire API: OpenAI-compatible
-Chat Completions, always streamed.** Its shape is unlike the LLM SDKs most
+**This skill describes svir 0.2, which speaks two wire APIs behind the same
+types: OpenAI-compatible Chat Completions and the Anthropic Messages API,
+always streamed.** For a project on 0.1, read `references/migration.md`
+first. Its shape is unlike the LLM SDKs most
 code was written against. The conversation is the request, the system prompt
 is a field, the answer is one stream whose last item is the whole answer, and
 an error is a kind to match on. Code written from habit -- a `system` role
@@ -33,27 +35,23 @@ them before writing code.
 ## Step 1 -- establish the version and the features
 
 ```bash
-cargo add svir
+cargo add svir --features tls-ring
 cargo add tokio --features macros,rt-multi-thread
 ```
+
+Without a TLS feature the client speaks plain HTTP only, which is enough for
+a server on loopback. A hosted API needs `tls-ring` (or `tls-aws-lc`).
 
 In an existing project, read `Cargo.toml` first:
 
 | What you find | What it means |
 |---|---|
-| `svir = "0.1"` and no `features` key | `client` and `tls` are on: everything here except `Tools::add`, `Schema::of`, and the `Trace` layer |
-| `svir = "=0.1.0"`, or a lock file on 0.1.0 | No `Error::status()`, no `tls-aws-lc`, a 4 MiB default wire limit, and inline `<think>` tags left in the answer when a delta is only part of a tag. Later 0.1 releases are drop-in |
-| `svir = "=0.1.1"`, or a lock file on 0.1.1 | No `FinishReason::ContentFilter`: a filtered answer is `Unsupported`. Azure OpenAI streams fail in strict mode with "an empty choices array before the finish reason". Later 0.1 releases are drop-in |
-| `svir = "=0.1.2"`, or a lock file on 0.1.2 | No `ErrorKind::ContentFilter`: a prompt the content filter blocked is `Unsupported`, and, since usage is asked for by default, is sent a second time without `reasoning_effort` and `stream_options`. An annotation from Azure's asynchronous content filter fails the stream with `Unsupported`. Later 0.1 releases are drop-in |
-| `svir = "=0.1.3"`, or a lock file on 0.1.3 | No `ToolResult::error` and no `is_error`: a failed call is a plain `ToolResult` whose content starts with `error: `, which is also what `Tools` writes. No `ClientBuilder::header`, no `TextFile::escaped_len`. Later 0.1 releases are drop-in, except that a `Tools` failure no longer has `error: ` in its `content`: test `result.is_error` |
-| `svir = "=0.1.4"`, or a lock file on 0.1.4 | No `tool_choice`, no `response_format`, no `Schema`, no `Completion::parse`, no `FinishReason::Refusal`: a refusal fails strict decoding with `Unsupported`, and lenient decoding drops it and completes with `Stop` and no text. 0.1.5 is drop-in, except that a refusal now completes with its text and the finish `Refusal` |
-| `svir = "=0.1.5"`, or a lock file on 0.1.5 | Reasoning that mlx-vlm sends under both `reasoning_content` and `reasoning` arrives twice: two `Reasoning` events for every piece, and two entries in `Completion::reasoning`. A call of a named tool that vLLM finishes with `stop` fails with `Protocol`. An error in FastAPI's form, `{"detail": ...}` (mlx-vlm), has no `server_message()`, and mlx-vlm's context overflows are `Unsupported`. 0.1.6 is drop-in |
-| `svir = "=0.1.6"`, or a lock file on 0.1.6 | No `Effort::Minimal` or `Effort::Max`, no `Completion::cut_calls`, no `ClientBuilder::lean_retry`. With a `Length` finish, calls the output limit may have cut short are in `calls`, where they look executable: check the finish before running them. A call with no ID or no name in such an answer fails with `Protocol`. 0.1.7 is drop-in, except that `calls` is empty with a `Length` finish: the calls are in `cut_calls` |
+| `svir = "0.2"` and no `features` key | The client over plain HTTP: everything here except HTTPS, `Tools::add`, `Schema::of`, and the `Trace` layer |
+| `features = ["tls-ring"]` or `["tls-aws-lc"]` | HTTP and HTTPS, with that rustls crypto provider |
+| `svir = "0.1"`, `features = ["tls"]`, or a lock file on 0.1.x | An older API: TLS on by default as `tls`, no Messages API, no `parts` or `signature`. Read `references/migration.md` before writing code |
 | `features = ["schemars"]` | `Tools::add`, which derives a tool's input schema from its argument type, and `Schema::of`, which derives an answer's schema from a type |
 | `features = ["tracing"]` | The `Trace` layer |
-| `default-features = false` | Types and the codec only: no `Client`, no `EventStream`, no layers, no attachments read from disk. Read `references/codec.md` |
-| `default-features = false, features = ["client"]` | The client without HTTPS: an `https://` URL is a `Config` error at `build()` |
-| `default-features = false, features = ["client", "tls-aws-lc"]` | HTTPS with the aws-lc-rs crypto provider in place of ring. Everything here applies |
+| `default-features = false` | Types and the codecs only: no `Client`, no `EventStream`, no layers, no attachments read from disk. Read `references/codec.md` |
 
 What else the caller's crate needs, and when:
 
@@ -67,10 +65,10 @@ What else the caller's crate needs, and when:
 
 One more check when the build already has rustls through another crate, such
 as reqwest: if that crate uses the aws-lc-rs provider, take svir with
-`default-features = false, features = ["client", "tls-aws-lc"]`. With both
-providers compiled in, rustls has no default one, and code elsewhere that
-calls `ClientConfig::builder()` panics with "no process-level CryptoProvider
-available". svir itself always passes its provider explicitly.
+`features = ["tls-aws-lc"]`. With both providers compiled in, rustls has no
+default one, and code elsewhere that calls `ClientConfig::builder()` panics
+with "no process-level CryptoProvider available". svir itself always passes
+its provider explicitly.
 
 ## Step 2 -- route to the reference you need
 
@@ -81,9 +79,11 @@ Each file is self-contained; load only what the task calls for.
 | Building a request: the system prompt, messages, images and text files, reasoning effort, sampling, an answer as JSON to a schema, keeping a conversation | `references/requests.md` |
 | Reading an answer: events, the completion and its finish reasons (a refusal among them), reasoning, usage and speed, cancelling, strict and lenient decoding, limits | `references/streaming.md` |
 | Tools: describing them, the `Tools` registry, typed arguments, the loop, requiring or forbidding a call, a `Toolbox` of one's own | `references/tools.md` |
-| The client: base URL, API keys, a gateway's extra headers, timeouts, retries and other layers, a custom HTTP backend, listing models, tests without a server | `references/client.md` |
+| The client: base URL, API keys, a gateway's extra headers, timeouts, retries and other layers, TLS, a custom HTTP backend, listing models, tests without a server | `references/client.md` |
+| The Anthropic Messages API: `Client::anthropic()`, `max_tokens`, effort as adaptive thinking, thinking sent back, stop reasons, its errors | `references/anthropic.md` |
 | A proxy that relays the stream; svir under another HTTP stack; `Encoder` and `Decoder` alone | `references/codec.md` |
 | An error kind, a failure to explain, a compile error on code that "should work" | `references/errors.md` |
+| A project on an older svir, or an upgrade | `references/migration.md` |
 
 ## A call that works
 
@@ -126,6 +126,9 @@ What this shows and every svir program repeats:
   client keeps no conversation: the request is the conversation.
 * `stream.next()` is a method of `EventStream`; no `StreamExt` import is
   needed.
+* The same code talks to the Anthropic Messages API with
+  `Client::anthropic()` (and `.base_url(..)` for another server), once every
+  request sets `max_tokens`. See `references/anthropic.md`.
 
 ## A tool loop that works
 
@@ -177,8 +180,9 @@ ID. Both are needed, in that order: without them the model sees results for
 calls it never made, and most servers reject the request.
 
 A handler's `Err` reaches the model as a failed result,
-`ToolResult::error(call_id, message)`: `is_error` is set, and Chat
-Completions sends it as `error: <message>`. A `Toolbox` of one's own returns
+`ToolResult::error(call_id, message)`: `is_error` is set, Chat Completions
+sends it as `error: <message>`, and the Messages API with its own
+`is_error`. A `Toolbox` of one's own returns
 `ToolResult::error` for a failure too; writing `error: ` into the content by
 hand sends the prefix twice, or leaves `is_error` unset.
 
@@ -209,7 +213,9 @@ compile, or compiles and misbehaves.
 
 5. **Put the `Completion` itself back into the history**, with
    `request.assistant(done)` or `Message::from(done)`. Rebuilding the
-   assistant turn from `done.text` loses the tool calls and their IDs.
+   assistant turn from `done.text` loses the tool calls and their IDs, and,
+   from the Messages API, its signed thinking blocks and their order, which
+   the API checks: it rejects the conversation.
 
 6. **There is no agent loop.** Feeding tool results back is the caller's
    loop, as above. Bound it: a model can call tools forever. A
@@ -235,7 +241,8 @@ compile, or compiles and misbehaves.
     explicit. Plain HTTP is accepted for loopback only; any other host needs
     `https://` or `.allow_http()`. A header a gateway asks for is
     `.header(name, value)`, never the Bearer key: `authorization` there is a
-    `Config` error.
+    `Config` error. `https://` needs a TLS feature (`tls-ring`), off by
+    default.
 
 11. **Decoding is strict by default.** A field svir does not know is an
     error, not a guess. `.lenient()` on the builder skips unknown input; use
@@ -257,6 +264,11 @@ compile, or compiles and misbehaves.
     be valid JSON. Nothing validates the answer against the schema: the type
     is the check. A refusal is `FinishReason::Refusal`, with the refusal as
     the text.
+
+15. **A Messages request needs `max_tokens`.** Without it the request is
+    `Unsupported` before anything is sent. `Effort::Minimal` and
+    `ResponseFormat::Json` have no Messages layout and are `Unsupported`
+    too; hosted Claude models reject `temperature`.
 
 ## Verify before you claim it works
 
@@ -294,8 +306,8 @@ without a server; `references/client.md` has one.
 ## Conventions worth keeping
 
 * `use svir::prelude::*;` is the intended import. Layers are in
-  `svir::layer`, the codec in `svir::openai::chat`, the HTTP seam in
-  `svir::http`.
+  `svir::layer`, the codecs in `svir::openai::chat` and
+  `svir::anthropic::messages`, the HTTP seam in `svir::http`.
 * Build one `Client` and clone it; clones share the connection pool and what
   was learned about the server.
 * Return `svir::Error` or convert it; keep the kind. `error.is_retryable()`

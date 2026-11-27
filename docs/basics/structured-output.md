@@ -12,7 +12,7 @@ other, and `Completion::parse` reads it into a type.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.7", features = ["schemars"] }
+svir = { version = "0.2", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -49,11 +49,11 @@ back into the type is the check. Nothing else checks it.
 
 ## The formats
 
-| `response_format(..)` | Sent as | The answer |
-|---|---|---|
-| `ResponseFormat::Text` | Nothing | Text of any shape. The default |
-| `ResponseFormat::Json` | `{"type": "json_object"}` | A JSON object of any shape |
-| `Schema::new(name, schema)`, `Schema::of::<T>()` | `{"type": "json_schema", ...}` | JSON that matches the schema |
+| `response_format(..)` | Chat Completions | Messages API | The answer |
+|---|---|---|---|
+| `ResponseFormat::Text` | Nothing | Nothing | Text of any shape. The default |
+| `ResponseFormat::Json` | `{"type": "json_object"}` | `Unsupported`: no layout without a schema | A JSON object of any shape |
+| `Schema::new(name, schema)`, `Schema::of::<T>()` | `{"type": "json_schema", ...}` | `output_config.format: {"type": "json_schema", "schema": ...}` | JSON that matches the schema |
 
 `response_format` takes a `Schema` as it is; `ResponseFormat::Schema(schema)`
 is the same thing. A `Text` format is not sent: it is every server's default.
@@ -82,7 +82,8 @@ fn weather(city: &str) -> Request {
 
 - **The name** is required by Chat Completions: ASCII letters, digits, `_`,
   and `-`, at most 64 characters. `Schema::of` names the schema after the
-  type.
+  type. The Messages API has no field for it, nor for `strict`: it always
+  holds the answer to the schema.
 - **`Schema::of::<T>()`** needs svir's `schemars` feature and `schemars = "1"`
   in your crate, as [`Tools::add`](./tools#schemas-from-types) does. The
   schema is the type's, with its doc comments as descriptions.
@@ -102,8 +103,9 @@ default and sent only when on.
   `#[serde(deny_unknown_fields)]` and no `Option` fields; schemars leaves an
   `Option` out of `required`.
 - **Local servers** (LM Studio, llama.cpp, vLLM, mlx-vlm) constrain sampling
-  to the schema, strict or not. mlx-lm reads no response format at all: it
-  answers in free text, and `parse` fails.
+  to the schema, strict or not, on Chat Completions. mlx-lm reads no response
+  format at all, nor does LM Studio's Messages endpoint: the answer is free
+  text, and `parse` fails.
 
 svir does not rewrite a derived schema to fit: rewritten, it would no longer
 say what the type says.

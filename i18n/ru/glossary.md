@@ -22,6 +22,11 @@
 | escaped length | длина после экранирования | Длина текста, экранированного в JSON-строку; `TextFile::escaped_len` |
 | reasoning | рассуждения | Ход мысли модели (reasoning) |
 | reasoning effort | глубина рассуждений | `Effort` |
+| thinking block | блок рассуждений | Рассуждения в Messages API; `ReasoningSource::Thinking` |
+| adaptive thinking | адаптивные рассуждения | Рассуждения, глубину которых модель выбирает сама в пределах `Effort` |
+| signature | подпись | Подпись блока рассуждений; `Reasoning::signature` |
+| redacted thinking | скрытые рассуждения | Блок рассуждений без текста; `ReasoningSource::RedactedThinking` |
+| stop reason | причина остановки | Поле `stop_reason` Messages API; svir переводит её в `FinishReason` |
 | reasoning parser | парсер рассуждений | Часть сервера, которая отделяет рассуждения от ответа (`--reasoning-parser` у vLLM) |
 | chat template | шаблон чата | Шаблон модели, который собирает промпт из сообщений |
 | usage | расход токенов | `Usage` |
@@ -60,8 +65,11 @@
 | compatibility handling | обработка совместимости | Запоминание полей, которые сервер отвергает |
 | lean retry | повтор без необязательных полей | Вторая попытка обработки совместимости; `ClientBuilder::lean_retry` |
 | crypto provider | криптопровайдер | ring или aws-lc-rs |
-| feature (Cargo) | фича | Фича Cargo: `client`, `tls`, `schemars`… |
+| feature (Cargo) | фича | Фича Cargo: `client`, `tls-ring`, `schemars`… |
 | loopback | loopback | Не переводится |
 | drop | drop | Освобождение значения в Rust; не переводится |
 | skill | скилл | Agent Skill |
+| Messages API | Messages API | Не переводится; Anthropic Messages API |
+| gateway | шлюз | Прокси перед API с собственной авторизацией |
+| migration | миграция | Страница о том, что менять при обновлении |
 | crate | крейт | |

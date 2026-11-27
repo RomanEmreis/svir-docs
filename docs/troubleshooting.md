@@ -16,13 +16,13 @@ What a symptom usually means. For what each error kind is, see
 | Symptom | Usual cause |
 |---|---|
 | `Config`: "plain HTTP to a host that is not loopback" | The URL is `http://` to another machine. Use `https://`, or `.allow_http()` for a trusted network |
-| `Config`: "an https URL needs the `tls` or the `tls-aws-lc` feature" | `default-features = false` without either |
+| `Config`: "an https URL needs the `tls-ring` or the `tls-aws-lc` feature" | The default build has no TLS. Add `features = ["tls-ring"]`, or `["tls-aws-lc"]`; see [Features and TLS](./client/features#tls-and-the-crypto-provider) |
 | `Config`: "the API key variable ... is not set" | `api_key_env` names a variable the process does not have. svir reads no `.env` file |
 | `Config`: "http() must be called before layers are added" | Move `.http(backend)` above `.layer(..)` and `.wrap(..)` |
 | `Config`: "a header name is not valid" | A name given to `.header(..)` has a space or another character a header name cannot have |
-| `Config`: "the header ... is set by svir, not by the caller" | `.header(..)` named `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, or `connection`. The Bearer key goes through `api_key` |
+| `Config`: "the header ... is set by svir, not by the caller" | `.header(..)` named `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection`, or `anthropic-version`. The Bearer key goes through `api_key` |
 | `Config`: "the value of header ... is not valid" | The value has a line break, another control character, or text that is not ASCII. Often a value read from a file with its trailing newline: trim it |
-| A panic elsewhere: "no process-level CryptoProvider available" | Two rustls providers are compiled in: svir's `tls` brought ring next to another crate's aws-lc-rs. Take svir with `tls-aws-lc`; see [Features and TLS](./client/features#tls-and-the-crypto-provider) |
+| A panic elsewhere: "no process-level CryptoProvider available" | Two rustls providers are compiled in: svir's `tls-ring` brought ring next to another crate's aws-lc-rs. Take svir with `tls-aws-lc`; see [Features and TLS](./client/features#tls-and-the-crypto-provider) |
 
 ### Sending
 
@@ -37,7 +37,12 @@ What a symptom usually means. For what each error kind is, see
 | `Transport`, detail "HTTP 500", on a message with an image: "image input is not supported" | llama.cpp without the model's image projector: start it with `--mmproj`. The kind is retryable, but sending the request again fails the same way |
 | `ContentFilter`, detail "HTTP 400" | Azure OpenAI's content filter blocked the prompt. Nothing was generated, but the evaluation was billed: change the prompt rather than send it again |
 | `Unsupported`: "the response is not an event stream" | A success status with HTML or JSON: a gateway page, or an endpoint that ignores `stream` |
-| `ContextOverflow` before anything was sent | `context_tokens` is set and the body's bytes plus `max_tokens` exceed it. Bytes overestimate images by far |
+| `ContextOverflow` before anything was sent | `context_tokens` is set and the estimate plus `max_tokens` exceeds it. Each image counts up to `image_tokens`, 16384 by default; lower it for a model that charges less. See [context admission](./basics/attachments#context-admission) |
+| `Unsupported`: "the Messages API needs max_tokens" | The Messages API requires `max_tokens`. Set it on the request |
+| `Unsupported`: "the Messages API has no minimal effort" | `Effort::Minimal` has no Messages level. Use `Low` |
+| `Unsupported`: "the Messages API takes a JSON answer only with a schema" | `ResponseFormat::Json` has no Messages layout. Give a `Schema` |
+| `Unsupported`, detail "HTTP 400", from the Messages API: "temperature" | API version `2026-10-21` takes no `temperature` on hosted models. Leave it unset |
+| `Unsupported`, detail "HTTP 400", from the Messages API: "thinking.type.disabled is not supported" | The model cannot turn thinking off. Use a low effort instead of `Effort::Off` |
 | `ContextOverflow` from the server | The conversation outgrew the context. Some servers say it inside a `200` stream; svir reports both the same way |
 | `ContextOverflow` from mlx-vlm on every request | The server's `--max-tokens` counts toward its context limit (`MAX_KV_SIZE`) when a request sets no `max_tokens`. Set `max_tokens`, or start the server with a lower `--max-tokens` |
 | `Unsupported`: "a tool call is required, and the request offers no tools" | `ToolChoice::Required` on a request with no tools. Add them with `.tool(..)` or `.tools(&toolbox)` |
@@ -78,7 +83,8 @@ What a symptom usually means. For what each error kind is, see
 | `parse` fails, and `done.text` is empty | LM Studio, with reasoning on, sent the JSON as reasoning. Add `.reasoning(Effort::Off)` |
 | `parse` fails on an answer that looks right | The type and the schema disagree, or no response format was set and the model wrapped the JSON in prose or a code fence. Derive the schema from the type with `Schema::of` |
 | The model never calls a tool | The model has no tool support, or the description does not say when to use the tool |
-| The model answers without the call `tool_choice` required | The server took the choice and did not keep it: LM Studio with `Required`, llama.cpp with a named tool, mlx-lm with any choice. svir does not check: test `done.calls` |
+| The model answers without the call `tool_choice` required | The server took the choice and did not keep it: LM Studio with `Required`, and with a named tool on its Messages endpoint, llama.cpp with a named tool, mlx-lm with any choice. svir does not check: test `done.calls` |
+| `done.text` holds markers such as `<\|message_model\|>`, and the model's tool calls as text | The server has no parser for the model's chat format: LM Studio with inkling-2-mini, on either API. Use a model the server parses |
 | A loop with a required tool call never ends with an answer | The choice stays on the request every turn. Set `.tool_choice(ToolChoice::Auto)` with the results |
 | The next request after a tool call is rejected | The assistant turn or a result is missing: `request.assistant(done).tool_results(results)` |
 | The same answer, whatever model is named | Some local servers answer with the loaded model when they do not know the ID. List the models |
@@ -98,7 +104,7 @@ What a symptom usually means. For what each error kind is, see
 | The trait `JsonSchema` is not implemented | Your `schemars` is not version 1, so its derive is a different trait |
 | Cannot find `Trace` in `svir::layer` | Enable the `tracing` feature |
 | Cannot find `Client` in `svir` | `default-features = false` turned the `client` feature off |
-| `Layer`, `Next`, `Retry`, or `Decoder` not found | They are not in the prelude: `svir::layer::..`, `svir::openai::chat::..` |
+| `Layer`, `Next`, `Retry`, or `Decoder` not found | They are not in the prelude: `svir::layer::..`, `svir::openai::chat::..`, `svir::anthropic::messages::..` |
 | Mismatched types: expected `Client<..>`, found `Client` | A client with a custom backend is `Client<Backend>`; name the type, or be generic over `B: svir::http::Backend` |
 | A future is not `Send`, in a `Layer` or `Toolbox` impl | Something that is not `Send` (an `Rc`, a `std::sync::MutexGuard`) is held across an `.await` |
 | Expected `ToolResult`, found `Result<..>` in `Toolbox::call` | `call` returns a result for the model, never an error: turn the failure into `ToolResult::error(&call.id, message)` |

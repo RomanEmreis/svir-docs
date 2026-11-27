@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 title: Custom HTTP backend
 description: Replacing the built-in hyper transport, for proxies, client certificates, or other roots.
 ---

@@ -1,8 +1,10 @@
 # The codec, and proxies
 
 `Encoder` and `Decoder` are what the client is built from, and they are
-public. Use them to relay a model's stream through a proxy, or to run svir
-under an HTTP stack of your own.
+public: one pair per wire API, `svir::openai::chat` and, from svir 0.2,
+`svir::anthropic::messages`, with the same calls. Use them to relay a model's
+stream through a proxy, or to run svir under an HTTP stack of your own. A
+proxy reads the stream with the decoder of the client's wire API.
 
 ## Contents
 
@@ -153,9 +155,10 @@ fn encode(request: &Request) -> Result<(u64, bytes::Bytes), Error> {
 | Call | Does |
 |---|---|
 | `Encoder::new()` | Sends what the request sets and nothing else |
-| `.include_usage(bool)` | Asks for token counts when the request does not say. Off here; the client turns it on |
-| `.lean(bool)` | Leaves out `reasoning_effort` and `stream_options`, for a server known to reject them. A tool choice and a response format stay |
-| `.context_tokens(n)` | Fails with `ContextOverflow` when the body length plus `max_tokens` does not fit |
+| `.include_usage(bool)` | Chat Completions only. Asks for token counts when the request does not say. Off here; the client turns it on |
+| `.lean(bool)` | Chat Completions only. Leaves out `reasoning_effort` and `stream_options`, for a server known to reject them. A tool choice and a response format stay |
+| `.context_tokens(n)` | Fails with `ContextOverflow` when the estimate plus `max_tokens` does not fit |
+| `.image_tokens(n)` | The most one image counts for in that estimate; 16384 by default (svir 0.2) |
 | `encode(&request)` | No I/O. An attachment held as a file path is `ErrorKind::Attachment`; a tool call required that the request cannot make is `Unsupported` |
 | `encode_files(&request).await` | Feature `client`. Measures file attachments first, so that the length is exact; a text file with a declared `escaped_len` is not read |
 | `body.len()` | The `Content-Length` to send |
@@ -170,7 +173,8 @@ that is not a stream.
 With `default-features = false` svir is the types and the codec. The
 transport then has to do what the client does:
 
-1. `POST {base}/v1/chat/completions` with `content-type: application/json`,
+1. `POST {base}/v1/chat/completions`, or `{base}/v1/messages` with
+   `anthropic-version: 2026-10-21`, with `content-type: application/json`,
    `accept: text/event-stream`, the `Authorization` header if there is a key,
    and `Content-Length` from `body.len()`.
 2. Treat any status other than success as an error before decoding. svir's

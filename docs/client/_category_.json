@@ -4,6 +4,6 @@
   "collapsed": false,
   "link": {
     "type": "generated-index",
-    "description": "Configuring the client: the server, keys, timeouts, layers, TLS, a custom HTTP backend, and tests without a server."
+    "description": "Configuring the client: the server, keys, timeouts, the Anthropic Messages API, layers, TLS, a custom HTTP backend, and tests without a server."
   }
 }

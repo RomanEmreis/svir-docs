@@ -17,7 +17,8 @@ src/css/           the theme: ultramarine on black and dark gray
 static/img/        logo marks (one per theme), the full logo, favicons, the social card
 skill/svir/        the Agent Skill, packaged as static/svir-skill.zip on every build
 ci/                build-skill.py packages the skill; check-snippets.py compiles the Rust snippets;
-                   check-site.py checks the build
+                   check-site.py checks the build; check-docs.py checks the version rules
+CONTRIBUTING.md    the rules for pages, versions, snippets, both locales, and releases
 ```
 
 ## Develop
@@ -28,7 +29,10 @@ npm start          # dev server; search is inert here
 npm run build      # production build, with broken links and anchors as errors
 npm run serve      # serve the build, search included
 python3 ci/check-site.py   # after a build: admonitions parsed, translations in step
+python3 ci/check-docs.py   # one svir version, no version history in guides, both locales
 ```
+
+The rules behind these checks are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 `npm start` serves one locale; `npm start -- --locale ru` serves the Russian one.
 

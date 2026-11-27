@@ -29,7 +29,8 @@ fn attachments(photo: Vec<u8>) -> Message {
 
 ## Images
 
-Images travel as base64 data URLs.
+Images travel as base64: a data URL in Chat Completions, an `image` block in the
+Messages API.
 
 - The media type comes from the extension for `png`, `jpg`, `jpeg`, `gif`, and
   `webp`. Anything else needs `.media_type(..)`, or sending fails with
@@ -41,7 +42,9 @@ Images travel as base64 data URLs.
 
 ## Text files
 
-Text files travel as text inside the message, wrapped with their name.
+Text files travel as text inside the message, wrapped with their name: in the
+one text of a Chat Completions message, or as a text block of their own in the
+Messages API, where every part keeps its place.
 
 - They must be UTF-8. `TextFile` is for text: send an image as `Image`, and
   convert anything else first.
@@ -66,11 +69,33 @@ into the body.
   body that disagrees with its length. A text file is checked to be UTF-8 as
   it streams, too.
 
-:::tip
+## Context admission
+
 `ClientBuilder::context_tokens(n)` refuses a request that cannot fit before
-sending it, by counting the body's bytes as tokens. That never underestimates
-text, but it overestimates images by far: with image attachments, leave it off.
-:::
+sending it, with `ErrorKind::ContextOverflow`: its estimate plus `max_tokens`
+must fit in `n`, and `max_tokens` must not be 0. The estimate is the body's
+length in bytes, which never underestimates text, since a token is at least a
+byte.
+
+An image is charged by its dimensions, not its bytes, so it counts as its
+base64 length but no more than `image_tokens`: 16384 by default, the most the
+common open vision encoders make of one image. A hosted model charges far less,
+roughly 1,500 to 5,000; give it its own figure:
+
+```rust
+use svir::prelude::*;
+
+fn client() -> Result<Client, Error> {
+    Client::anthropic()
+        .api_key_env("ANTHROPIC_API_KEY")
+        .context_tokens(1_000_000)
+        .image_tokens(5_000)
+        .build()
+}
+```
+
+A small image still counts as its bytes; the cap never raises it. Nothing is
+decoded to count: an image read from disk is measured by its size.
 
 ## Declared lengths
 

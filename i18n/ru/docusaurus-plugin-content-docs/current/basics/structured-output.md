@@ -12,7 +12,7 @@ JSON по схеме. Ответ приходит текстом, как люб�
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.7", features = ["schemars"] }
+svir = { version = "0.2", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -49,11 +49,11 @@ async fn river(client: &Client) -> Result<River, Box<dyn std::error::Error>> {
 
 ## Форматы {/* #the-formats */}
 
-| `response_format(..)` | Отправляется как | Ответ |
-|---|---|---|
-| `ResponseFormat::Text` | Ничего | Текст любой формы. По умолчанию |
-| `ResponseFormat::Json` | `{"type": "json_object"}` | JSON-объект любой формы |
-| `Schema::new(name, schema)`, `Schema::of::<T>()` | `{"type": "json_schema", ...}` | JSON, соответствующий схеме |
+| `response_format(..)` | Chat Completions | Messages API | Ответ |
+|---|---|---|---|
+| `ResponseFormat::Text` | Ничего | Ничего | Текст любой формы. По умолчанию |
+| `ResponseFormat::Json` | `{"type": "json_object"}` | `Unsupported`: без схемы раскладки нет | JSON-объект любой формы |
+| `Schema::new(name, schema)`, `Schema::of::<T>()` | `{"type": "json_schema", ...}` | `output_config.format: {"type": "json_schema", "schema": ...}` | JSON, соответствующий схеме |
 
 `response_format` принимает `Schema` как есть; `ResponseFormat::Schema(schema)`
 — то же самое. Формат `Text` не отправляется: это умолчание любого сервера.
@@ -82,7 +82,9 @@ fn weather(city: &str) -> Request {
 ```
 
 - **Имя** Chat Completions требует обязательно: ASCII-буквы, цифры, `_` и `-`,
-  не длиннее 64 символов. `Schema::of` называет схему по имени типа.
+  не длиннее 64 символов. `Schema::of` называет схему по имени типа. В
+  Messages API для него нет поля, как и для `strict`: там ответ всегда
+  держится схемы.
 - **`Schema::of::<T>()`** нужна фича svir `schemars` и `schemars = "1"` в
   вашем крейте — как и [`Tools::add`](./tools#schemas-from-types). Схема — это
   схема типа, с его doc-комментариями в роли описаний.
@@ -102,8 +104,9 @@ fn weather(city: &str) -> Request {
   каждой структуры в ней есть `#[serde(deny_unknown_fields)]` и нет полей
   `Option`: schemars не включает `Option` в `required`.
 - **Локальные серверы** (LM Studio, llama.cpp, vLLM, mlx-vlm) ограничивают
-  сэмплирование схемой — строгой или нет. mlx-lm формат ответа не читает
-  вовсе: он отвечает свободным текстом, и `parse` падает.
+  сэмплирование схемой — строгой или нет — в Chat Completions. mlx-lm формат
+  ответа не читает вовсе, как и эндпоинт Messages у LM Studio: ответ приходит
+  свободным текстом, и `parse` падает.
 
 svir не переписывает выведенную схему под эти требования: переписанная, она
 перестала бы говорить то, что говорит тип.

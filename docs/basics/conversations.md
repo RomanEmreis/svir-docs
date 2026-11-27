@@ -37,6 +37,12 @@ assistant message with its reasoning, text, and tool calls. Clone it first if
 you also store it elsewhere. `Message::from(done)` does the same for code that
 builds messages by hand.
 
+An answer from the Messages API goes back block for block, in the order it
+came: `done.parts` keeps that order, and its thinking blocks keep their
+signatures. The API rejects a conversation whose thinking blocks were
+reordered, edited, or dropped, so an assistant turn rebuilt by hand is the one
+way to break it.
+
 Rebuilding the assistant turn from `done.text` with `Message::assistant(..)`
 loses the tool calls and their IDs. That is fine for a stored conversation that
 had no tools, and wrong for a live one.
@@ -53,12 +59,19 @@ had no tools, and wrong for a live one.
 
 ## Sending reasoning back
 
-Reasoning in earlier answers is kept in the history but not sent back unless the
-request says `.send_reasoning(true)`. When it is sent, it goes under the field
-it arrived in (`reasoning_content` or `reasoning`), since a server expects its
-own field back unchanged. The same text in both fields is one piece and goes
-back as `reasoning_content`. Reasoning split out of inline `<think>` tags is
-never sent back.
+Each wire API takes back only its own reasoning:
+
+- **Chat Completions**: reasoning in earlier answers is kept in the history but
+  not sent back unless the request says `.send_reasoning(true)`. When it is
+  sent, it goes under the field it arrived in (`reasoning_content` or
+  `reasoning`), since a server expects its own field back unchanged. The same
+  text in both fields is one piece and goes back as `reasoning_content`.
+- **Messages API**: thinking blocks always go back, with their signatures,
+  whatever `send_reasoning` says: the API asks for them, and drops without
+  billing what the current model cannot read.
+- Reasoning split out of inline `<think>` tags is never sent back, nor is one
+  API's reasoning sent to the other: a conversation can move from one to the
+  other, without the reasoning.
 
 ```rust
 use svir::prelude::*;

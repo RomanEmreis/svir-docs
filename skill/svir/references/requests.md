@@ -32,14 +32,17 @@ returns it.
 | `tool_choice(choice)` | Whether the model may or must call a tool; see `tools.md` |
 | `response_format(format)` | The answer as JSON, or as JSON that matches a schema; see [Structured output](#structured-output) |
 | `reasoning(effort)` | How much the model should reason |
-| `max_tokens(n)` | The most tokens to generate. On most servers reasoning counts toward it |
+| `max_tokens(n)` | The most tokens to generate. On most servers reasoning counts toward it. **The Messages API requires it** |
 | `temperature(t)` | Sampling temperature |
-| `include_usage(bool)` | Overrides the client's default (on) of asking for token counts |
-| `send_reasoning(bool)` | Sends reasoning from earlier answers back (off by default) |
+| `include_usage(bool)` | Overrides the client's default (on) of asking for token counts. Chat Completions only |
+| `send_reasoning(bool)` | Sends Chat Completions reasoning from earlier answers back (off by default). The Messages API always gets its own back |
 
 Nothing is sent unless it is set: a request without `max_tokens` or
 `temperature` leaves them to the server, and a tool choice or a response
-format left at its default is not sent either.
+format left at its default is not sent either. The exception is `max_tokens`
+for the Messages API: a request without it is `Unsupported` before anything
+is sent. On hosted Claude models, `temperature` is rejected with a 400 (API
+version `2026-10-21`); leave it unset there.
 
 ```rust
 use svir::prelude::*;
@@ -155,11 +158,17 @@ fn attach(path: &str, escaped: u64) -> TextFile {
 (`Minimal` and `Max`: svir 0.1.7). `Max` is as much as the model offers,
 and `XHigh` the level below it. Unset sends nothing and leaves the choice to
 the server. `Off` asks for no reasoning; whether the model obeys is the
-model's business. A level is sent as set, by its Chat Completions name, and
-never moved to one the server takes: which levels a model takes is the
-model's.
+model's business. A level is sent as set and never moved to one the server
+takes: which levels a model takes is the model's.
 
-A server that rejects the field is handled by the client: the request is sent
+| `Effort` | Chat Completions | Messages API (svir 0.2) |
+|---|---|---|
+| unset | nothing | nothing |
+| `Off` | `reasoning_effort: "none"` | `thinking: {type: "disabled"}`; a model that cannot turn thinking off answers 400 |
+| `Minimal` | `"minimal"` | `Unsupported` before sending |
+| `Low` to `Max` | `"low"` ... `"max"` | adaptive thinking with a summarized display, at `output_config.effort` |
+
+A Chat Completions server that rejects the field is handled by the client: the request is sent
 again without it, once, and the server is remembered. No code is needed for
 that. vLLM hands the effort to the model's chat template, which may name only
 some values (Qwen3.8's rejects `High` with a 400); the client then stops
@@ -205,11 +214,11 @@ async fn river(client: &Client) -> Result<River, Box<dyn std::error::Error>> {
 }
 ```
 
-| `response_format(..)` | Sent as | The answer |
-|---|---|---|
-| `ResponseFormat::Text` | Nothing | Text of any shape. The default |
-| `ResponseFormat::Json` | `{"type": "json_object"}` | A JSON object of any shape |
-| `Schema::new(name, schema)`, `Schema::of::<T>()` | `{"type": "json_schema", ...}` | JSON that matches the schema |
+| `response_format(..)` | Chat Completions | Messages API | The answer |
+|---|---|---|---|
+| `ResponseFormat::Text` | Nothing | Nothing | Text of any shape. The default |
+| `ResponseFormat::Json` | `{"type": "json_object"}` | `Unsupported` | A JSON object of any shape |
+| `Schema::new(name, schema)`, `Schema::of::<T>()` | `{"type": "json_schema", ...}` | `output_config.format`, without the name or `strict` | JSON that matches the schema |
 
 A schema written by hand:
 
@@ -325,8 +334,8 @@ as base64. A stored path has to exist again when the request is sent.
 
 ## What a request cannot say
 
-svir 0.1 has no stop sequences, and asks for one choice. The response is
-always a stream; `complete` collects it. Do not reach for a field that is not
-in the table above: say that svir 0.1 does not carry it. `tool_choice` and
+svir has no stop sequences, and asks for one choice. The response is always a
+stream; `complete` collects it. Do not reach for a field that is not in the
+table above: say that svir does not carry it. `tool_choice` and
 `response_format` need svir 0.1.5; on an earlier lock file, say so rather
 than writing the JSON by hand.

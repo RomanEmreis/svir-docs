@@ -49,9 +49,10 @@ After `Completed`, or after an `Err`, `next()` returns `None`. `Event` is
 |---|---|---|
 | `finish` | `FinishReason` | `Stop`, `ToolCalls`, `Length`, `ContentFilter`, or `Refusal` |
 | `text` | `String` | The answer, exactly as sent |
-| `reasoning` | `Vec<Reasoning>` | Reasoning, one entry per source |
+| `reasoning` | `Vec<Reasoning>` | Reasoning: one entry per source from Chat Completions, one per thinking block from the Messages API |
 | `calls` | `Vec<ToolCall>` | Complete tool calls, in order. Empty with a `Length` finish |
 | `cut_calls` | `Vec<ToolCallDelta>` | With a `Length` finish, the calls the output limit cut off, as far as they arrived (svir 0.1.7). Never to run |
+| `parts` | `Vec<Part>` | The text, reasoning, and calls in wire order, from the Messages API (svir 0.2); empty from Chat Completions. `request.assistant(done)` uses it |
 | `usage` | `Option<Usage>` | Token counts, when the server reported them |
 | `timing` | `Option<Timing>` | When the first and last visible tokens arrived |
 
@@ -94,7 +95,8 @@ text is its refusal. Chat Completions sends it in `refusal` in place of
 and makes the finish `Refusal`, so a chat shows it with no code of its own
 and code that asked for JSON learns the text is not JSON. A refusal the
 content filter stopped is `ContentFilter`. Do not look for a `refusal` field
-on the completion: there is none.
+on the completion: there is none. The Messages API's `refusal` stop reason is
+this finish too, with the text that streamed before it kept.
 
 A `Length` finish can cut tool calls short: their arguments, their name, even
 their ID. svir 0.1.7 leaves `calls` empty then, and puts each call the
@@ -144,14 +146,20 @@ can be moved into a task or stored in a struct. It also implements
 
 ## Reasoning
 
-Servers carry reasoning in three ways, and svir reads all of them into
-`Reasoning { source, text }`:
+Servers carry reasoning in several ways, and svir reads all of them into
+`Reasoning { source, text, signature }`:
 
 | `ReasoningSource` | Where it was |
 |---|---|
 | `ReasoningContent` | The `reasoning_content` field, or the same text in both `reasoning_content` and `reasoning` (mlx-vlm sends both; svir 0.1.6 reads it once) |
 | `Reasoning` | The `reasoning` field |
 | `Think` | `<think>...</think>` inside the answer text |
+| `Thinking` | A Messages API thinking block, with its `signature` (svir 0.2) |
+| `RedactedThinking` | A redacted Messages API thinking block: no text, its encrypted data in `signature` (svir 0.2) |
+
+`signature` is what the server needs back, unchanged: keep it, never show it.
+A thinking block's text may be empty when the server hides it; a redacted
+block emits no event.
 
 Inline `<think>` tags are split out of the text by default, so reasoning is
 not shown as the answer even when a server has no reasoning parser.
@@ -164,7 +172,8 @@ streamed it as text before the marker arrives. The fix is on the server:
 vLLM's `--reasoning-parser`, llama.cpp's default `--reasoning-format`.
 
 `Completion::reasoning` has one entry per source, in order of first
-appearance, with the pieces joined.
+appearance, with the pieces joined, from Chat Completions, and one entry per
+block from the Messages API.
 
 ## Usage and speed
 
@@ -250,6 +259,15 @@ delta) carry nothing of the answer and are skipped in both modes. An
 annotation that blocks, by a `content_filter` finish or a verdict marked
 `filtered: true`, makes the finish `ContentFilter`, even after the model's
 `stop`.
+
+The Messages decoder (svir 0.2) skips event types and fields it does not
+know in both modes, as the API's versioning policy asks; a block type or a
+delta type it does not know is `Unsupported` in strict mode and skipped in
+lenient mode. A delta for a block that is not open, of the wrong type, or a
+block out of order is `Protocol` in both. Stop reasons: `end_turn` and
+`stop_sequence` are `Stop`, `tool_use` is `ToolCalls`, `max_tokens` and
+`model_context_window_exceeded` are `Length`, `refusal` is `Refusal`, and
+`pause_turn` or an unknown one is `Unsupported`.
 
 Choose strict for a server under your control, and to find out what a new
 server actually sends. Choose lenient for a server with extensions you do

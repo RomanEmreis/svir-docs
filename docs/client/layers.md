@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 title: Layers
 description: Middleware around every call. Retry, Timeout and Trace, closures, and layers of your own.
 ---

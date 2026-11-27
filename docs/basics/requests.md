@@ -41,14 +41,16 @@ and dropping its result changes nothing.
 | `tool_choice(choice)` | Whether the model may or must call a tool; see [Tools](./tools#requiring-or-forbidding-a-call) |
 | `response_format(format)` | The answer as JSON, or as JSON that matches a schema; see [Structured output](./structured-output) |
 | `reasoning(effort)` | How much the model should reason |
-| `max_tokens(n)` | The most tokens to generate. On most servers reasoning counts toward it |
+| `max_tokens(n)` | The most tokens to generate. On most servers reasoning counts toward it. The Messages API requires it |
 | `temperature(t)` | Sampling temperature |
-| `include_usage(bool)` | Overrides the client's default (on) of asking for token counts |
-| `send_reasoning(bool)` | Sends reasoning from earlier answers back (off by default) |
+| `include_usage(bool)` | Overrides the client's default (on) of asking for token counts. Chat Completions only: the Messages API always reports them |
+| `send_reasoning(bool)` | Sends Chat Completions reasoning from earlier answers back (off by default). The Messages API always gets its own back |
 
 Nothing is sent unless it is set: a request without `max_tokens` or
 `temperature` leaves them to the server, and a tool choice or a response
-format left at its default is not sent either.
+format left at its default is not sent either. The one exception is
+`max_tokens` for the Messages API, which requires it: a request without it is
+`Unsupported` before anything is sent.
 
 The fields are public for reading (`request.model`, `request.messages`), which
 is what a [layer](../client/layers) uses. `Request` is `Clone`, and
@@ -103,8 +105,20 @@ Images and text files are covered in [Attachments](./attachments).
 `Max` is as much as the model offers, and `XHigh` the level below it. Unset
 sends nothing and leaves the choice to the server. `Off` asks for no
 reasoning; whether the model obeys is up to the model. A level is sent as
-set, by its Chat Completions name, and never moved to one the server takes:
-which levels a model takes is the model's.
+set and never moved to one the server takes: which levels a model takes is
+the model's.
+
+| `Effort` | Chat Completions | Messages API |
+|---|---|---|
+| unset | nothing | nothing |
+| `Off` | `reasoning_effort: "none"` | `thinking: {type: "disabled"}` |
+| `Minimal` | `"minimal"` | `Unsupported`: the API has no such level |
+| `Low` to `Max` | `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"max"` | `thinking: {type: "adaptive", display: "summarized"}` and `output_config.effort` at that level |
+
+On the Messages API a level turns adaptive thinking on, since some models do
+not think unless asked, and asks for a summary of it, since some return
+thinking blocks with empty text by default. Models that cannot turn thinking
+off answer `Off` with a `400`.
 
 ```rust
 use svir::prelude::*;
@@ -118,9 +132,9 @@ fn think_hard(question: &str) -> Request {
 }
 ```
 
-Some servers reject the `reasoning_effort` field outright. The client handles
-that for you: the request is sent again without the field, once, and the server
-is remembered. See
+Some Chat Completions servers reject the `reasoning_effort` field outright. The
+client handles that for you: the request is sent again without the field, once,
+and the server is remembered. See
 [compatibility handling](../client/configuration#compatibility-handling).
 
 vLLM hands the effort to the model's chat template, which may name only some
@@ -137,6 +151,6 @@ and in `Completion::reasoning` at the end; see
 
 ## What a request cannot say
 
-svir 0.1 has no stop sequences, and asks for one choice. The response is
-always a stream; `complete` collects it. If a server needs a field that is not
-in the table above, svir 0.1 does not carry it.
+svir has no stop sequences, and asks for one choice. The response is always a
+stream; `complete` collects it. If a server needs a field that is not in the
+table above, svir does not carry it.
