@@ -23,6 +23,7 @@ another LLM SDK: OpenAI's or Anthropic's, in Python or TypeScript.
 | Section | What it holds | Shape |
 |---|---|---|
 | Getting started (`intro.md`) | Install, a first call, what svir covers | Guide |
+| Tutorial | One program built over four chapters | One growing `src/main.rs`, see [The tutorial](#the-tutorial) |
 | Basics | Requests, attachments, answers, conversations, tools, structured output | Guide |
 | Client | Configuration, the Anthropic Messages API, layers, features and TLS, a custom backend, tests | Guide |
 | Advanced | What most apps never need: strictness and limits, a proxy, the codec alone | Guide |
@@ -43,6 +44,24 @@ another LLM SDK: OpenAI's or Anthropic's, in Python or TypeScript.
 A difference between the two wire APIs goes into the guide it concerns, as a
 column or a sentence; what only the Messages API has goes to
 [Anthropic Messages](docs/client/anthropic.md).
+
+## The tutorial
+
+The [tutorial](docs/tutorial/overview.md) builds one program, `ralph`, a loop
+that makes a crate's failing tests pass. Each chapter shows its new code in
+pieces and ends with the whole `src/main.rs` in a `<details>` block.
+
+* **The full listings are the source of truth.** The pieces in the text are
+  copied from them, line for line, and marked `rust skip`; the listings are
+  compiled.
+* **Each chapter's program runs.** Build every listing as a binary of one
+  scratch crate, with the dependencies the first chapter gives, and run it on
+  a fresh copy of the practice crate from the overview.
+* **Outputs shown in the text are captured from a run**, against the server
+  and model the overview names, not written by hand. If a change alters what
+  the program prints or does, capture them again, for every chapter it
+  touches. A model answers differently each time: show what the run gave,
+  and do not describe more in the text than the output shows.
 
 ## Versions
 
@@ -167,7 +186,9 @@ Do this for every release, in one pull request per release.
    also goes to [Features and TLS](docs/client/features.md).
 5. Set `svir-version` in `skill/svir/SKILL.md`, and the same in the Agent Skill
    page's frontmatter block, in both locales.
-6. Run the [checks](#checks-before-a-pull-request).
+6. Run the [checks](#checks-before-a-pull-request). If the release changed
+   an API the tutorial uses, build its listings and capture its outputs
+   again; see [The tutorial](#the-tutorial).
 
 **A new minor release (0.x.0) also moves the version everywhere:**
 

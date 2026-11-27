@@ -1,0 +1,8 @@
+{
+  "label": "Tutorial",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "A program that makes failing tests pass, built in four chapters: a client, tools, rounds with a fresh context, and layers with a token budget."
+  }
+}

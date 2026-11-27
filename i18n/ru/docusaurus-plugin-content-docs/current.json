@@ -3,6 +3,14 @@
     "message": "Next",
     "description": "The label for version current"
   },
+  "sidebar.docsSidebar.category.Tutorial": {
+    "message": "Туториал",
+    "description": "The label for category 'Tutorial' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.Tutorial.link.generated-index.description": {
+    "message": "Программа, которая чинит падающие тесты, в четырёх главах: клиент, инструменты, раунды с чистым контекстом и слои с бюджетом токенов.",
+    "description": "The generated-index page description for category 'Tutorial' in sidebar 'docsSidebar'"
+  },
   "sidebar.docsSidebar.category.Basics": {
     "message": "Основы",
     "description": "The label for category 'Basics' in sidebar 'docsSidebar'"

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 9
 title: Agent Skill
 description: Готовый Agent Skill, который учит кодового ассистента правильно писать на svir.
 ---

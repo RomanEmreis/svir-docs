@@ -153,6 +153,9 @@ show the few lines each one takes.
 
 ## Where to next
 
+- The [tutorial](./tutorial/overview) builds a program that makes failing
+  tests pass: a client, tools, a loop with a fresh context, and a token
+  budget, in four chapters.
 - [Requests](./basics/requests) and [Reading an answer](./basics/answers) cover
   the everyday calls.
 - [Tools](./basics/tools) shows the loop that feeds tool results back.
