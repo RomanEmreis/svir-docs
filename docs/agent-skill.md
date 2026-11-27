@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 8
 title: Agent Skill
 description: A packaged Agent Skill that teaches a coding assistant to write svir correctly.
 ---
@@ -25,7 +25,7 @@ on. An assistant writing from habit reaches for a `system` role message,
 `choices[0].delta.content`, or a client that remembers the chat. That code does
 not compile here, or worse, compiles and loses the tool calls.
 
-The skill front-loads exactly those traps, fourteen non-negotiables, and then
+The skill front-loads exactly those traps, fifteen non-negotiables, and then
 routes to detail on demand.
 
 ## What is in it
@@ -37,11 +37,13 @@ routes to detail on demand.
 | `references/streaming.md` | Events, the completion and its finish reasons, reasoning, usage and speed, cancelling, strict and lenient, limits, failures |
 | `references/tools.md` | `Tool`, the `Tools` registry, schemas from types, the loop, streamed, requiring or forbidding a call, a `Toolbox` of one's own |
 | `references/client.md` | Base URL, API keys, extra headers, timeouts, listing models, layers, TLS providers, a custom HTTP backend, tests without a server |
+| `references/anthropic.md` | The Messages API: `Client::anthropic()`, `max_tokens`, effort as adaptive thinking, thinking sent back, stop reasons, its errors |
 | `references/codec.md` | A proxy that relays the stream, `Encoder` and `Decoder` alone, a transport of one's own |
 | `references/errors.md` | Error kinds, and symptom to cause at runtime and at compile time |
+| `references/migration.md` | What a project on an older release lacks, and what changes on an upgrade |
 
 `SKILL.md` stays short on purpose: an entrypoint the agent always reads, and
-six references it loads only when the task needs one.
+eight references it loads only when the task needs one.
 
 ## Install
 
@@ -94,16 +96,16 @@ python3 ci/check-snippets.py --docs-dir skill
 
 ## Version
 
-The skill tracks svir **0.1.7**: OpenAI-compatible Chat Completions, streamed.
-The frontmatter records it, so an assistant can tell whether the skill matches
-the crate in front of it:
+The skill tracks svir **0.2**: OpenAI-compatible Chat Completions and the
+Anthropic Messages API, streamed. The frontmatter records it, so an assistant
+can tell whether the skill matches the crate in front of it:
 
 ```yaml
 metadata:
-  svir-version: "0.1.7"
+  svir-version: "0.2.0"
   msrv: "1.85"
-  wire-api: "OpenAI-compatible Chat Completions, streaming"
+  wire-api: "OpenAI-compatible Chat Completions and Anthropic Messages, streaming"
 ```
 
-It also tells the assistant what changed between 0.1 releases, for a project
-locked on an older one.
+Its `references/migration.md` tells the assistant what changed between
+releases, for a project locked on an older one.

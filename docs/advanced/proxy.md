@@ -9,7 +9,9 @@ description: Pass a model server's event stream on unchanged, and read it on the
 A chat backend often sits between a browser and a model server. The browser
 should get the server's event stream unchanged, and the backend wants the
 finished answer to store. `client.send` gives the bytes; a `Decoder` reads
-them on the way past.
+them on the way past: `svir::openai::chat::Decoder` for a client made with
+`Client::openai`, `svir::anthropic::messages::Decoder` for one made with
+`Client::anthropic`.
 
 | The job | Use |
 |---|---|

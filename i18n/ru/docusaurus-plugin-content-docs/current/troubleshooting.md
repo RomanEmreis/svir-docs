@@ -16,13 +16,13 @@ description: Симптом → причина, во время выполнен
 | Симптом | Обычная причина |
 |---|---|
 | `Config`: «plain HTTP to a host that is not loopback» | URL — `http://` на другую машину. Используйте `https://` или `.allow_http()` для доверенной сети |
-| `Config`: «an https URL needs the `tls` or the `tls-aws-lc` feature» | `default-features = false` без любой из них |
+| `Config`: «an https URL needs the `tls-ring` or the `tls-aws-lc` feature» | В сборке по умолчанию нет TLS. Добавьте `features = ["tls-ring"]` или `["tls-aws-lc"]`; см. [Фичи и TLS](./client/features#tls-and-the-crypto-provider) |
 | `Config`: «the API key variable ... is not set» | `api_key_env` называет переменную, которой у процесса нет. svir не читает файл `.env` |
 | `Config`: «http() must be called before layers are added» | Поднимите `.http(backend)` выше `.layer(..)` и `.wrap(..)` |
 | `Config`: «a header name is not valid» | В имени, переданном в `.header(..)`, есть пробел или другой символ, недопустимый в имени заголовка |
-| `Config`: «the header ... is set by svir, not by the caller» | `.header(..)` назвал `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding` или `connection`. Bearer-ключ передаётся через `api_key` |
+| `Config`: «the header ... is set by svir, not by the caller» | `.header(..)` назвал `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection` или `anthropic-version`. Bearer-ключ передаётся через `api_key` |
 | `Config`: «the value of header ... is not valid» | В значении перевод строки, другой управляющий символ или не-ASCII текст. Часто это значение, прочитанное из файла вместе с завершающим переводом строки: обрежьте его |
-| Паника в другом месте: «no process-level CryptoProvider available» | Скомпилированы два провайдера rustls: `tls` у svir принёс ring рядом с aws-lc-rs из другого крейта. Возьмите svir с `tls-aws-lc`; см. [Фичи и TLS](./client/features#tls-and-the-crypto-provider) |
+| Паника в другом месте: «no process-level CryptoProvider available» | Скомпилированы два провайдера rustls: `tls-ring` у svir принёс ring рядом с aws-lc-rs из другого крейта. Возьмите svir с `tls-aws-lc`; см. [Фичи и TLS](./client/features#tls-and-the-crypto-provider) |
 
 ### Отправка {/* #sending */}
 
@@ -37,7 +37,12 @@ description: Симптом → причина, во время выполнен
 | `Transport`, detail «HTTP 500», в сообщении с изображением: «image input is not supported» | llama.cpp без проектора изображений модели: запустите его с `--mmproj`. Этот вид ошибки повторяемый, но повторная отправка падает так же |
 | `ContentFilter`, detail «HTTP 400» | Контент-фильтр Azure OpenAI заблокировал промпт. Ничего не сгенерировано, но проверка оплачена: промпт нужно менять, а не отправлять снова |
 | `Unsupported`: «the response is not an event stream» | Успешный статус с HTML или JSON: страница шлюза или эндпоинт, который игнорирует `stream` |
-| `ContextOverflow` ещё до отправки | Задан `context_tokens`, и байты тела плюс `max_tokens` его превышают. Байты сильно завышают изображения |
+| `ContextOverflow` ещё до отправки | Задан `context_tokens`, и оценка плюс `max_tokens` его превышает. Каждое изображение засчитывается не больше чем на `image_tokens`, по умолчанию 16384; для модели, которая берёт меньше, уменьшите его. См. [проверку контекста](./basics/attachments#context-admission) |
+| `Unsupported`: «the Messages API needs max_tokens» | Messages API требует `max_tokens`. Задайте его в запросе |
+| `Unsupported`: «the Messages API has no minimal effort» | У `Effort::Minimal` нет уровня в Messages API. Используйте `Low` |
+| `Unsupported`: «the Messages API takes a JSON answer only with a schema» | У `ResponseFormat::Json` нет раскладки в Messages API. Передайте `Schema` |
+| `Unsupported`, detail «HTTP 400», от Messages API: «temperature» | Версия API `2026-10-21` не принимает `temperature` у хостинговых моделей. Не задавайте её |
+| `Unsupported`, detail «HTTP 400», от Messages API: «thinking.type.disabled is not supported» | Модель не умеет отключать рассуждения. Вместо `Effort::Off` возьмите низкую глубину |
 | `ContextOverflow` от сервера | Диалог перерос контекст. Некоторые серверы говорят это внутри потока со статусом `200`; svir сообщает об обоих случаях одинаково |
 | `ContextOverflow` от mlx-vlm на каждый запрос | `--max-tokens` сервера входит в его лимит контекста (`MAX_KV_SIZE`), когда в запросе нет `max_tokens`. Задайте `max_tokens` или запустите сервер с меньшим `--max-tokens` |
 | `Unsupported`: «a tool call is required, and the request offers no tools» | `ToolChoice::Required` в запросе без инструментов. Добавьте их через `.tool(..)` или `.tools(&toolbox)` |
@@ -78,7 +83,8 @@ description: Симптом → причина, во время выполнен
 | `parse` падает, а `done.text` пуст | LM Studio с включёнными рассуждениями прислал JSON как рассуждения. Добавьте `.reasoning(Effort::Off)` |
 | `parse` падает на ответе, который выглядит правильно | Тип и схема расходятся, или формат ответа не задан, и модель обернула JSON в прозу или блок кода. Выведите схему из типа через `Schema::of` |
 | Модель никогда не вызывает инструмент | У модели нет поддержки инструментов, или описание не говорит, когда инструментом пользоваться |
-| Модель отвечает без вызова, которого требовал `tool_choice` | Сервер принял выбор и не выполнил его: LM Studio с `Required`, llama.cpp с именованным инструментом, mlx-lm с любым выбором. svir это не проверяет: смотрите `done.calls` |
+| Модель отвечает без вызова, которого требовал `tool_choice` | Сервер принял выбор и не выполнил его: LM Studio с `Required`, а на своём эндпоинте Messages и с именованным инструментом, llama.cpp с именованным инструментом, mlx-lm с любым выбором. svir это не проверяет: смотрите `done.calls` |
+| В `done.text` метки вроде `<\|message_model\|>`, а вызовы инструментов модели — текстом | У сервера нет парсера для формата чата этой модели: LM Studio с inkling-2-mini, в любом протоколе. Возьмите модель, которую сервер разбирает |
 | Цикл с обязательным вызовом инструмента никогда не заканчивается ответом | Выбор остаётся в запросе на каждом ходу. Вместе с результатами задайте `.tool_choice(ToolChoice::Auto)` |
 | Следующий запрос после вызова инструмента отвергается | Не хватает реплики ассистента или результата: `request.assistant(done).tool_results(results)` |
 | Один и тот же ответ, какую модель ни назови | Некоторые локальные серверы отвечают загруженной моделью, если не знают ID. Выведите список моделей |
@@ -98,7 +104,7 @@ description: Симптом → причина, во время выполнен
 | The trait `JsonSchema` is not implemented | Ваш `schemars` не версии 1, поэтому его derive — другой трейт |
 | Cannot find `Trace` in `svir::layer` | Включите фичу `tracing` |
 | Cannot find `Client` in `svir` | `default-features = false` выключил фичу `client` |
-| `Layer`, `Next`, `Retry` или `Decoder` not found | Их нет в прелюдии: `svir::layer::..`, `svir::openai::chat::..` |
+| `Layer`, `Next`, `Retry` или `Decoder` not found | Их нет в прелюдии: `svir::layer::..`, `svir::openai::chat::..`, `svir::anthropic::messages::..` |
 | Mismatched types: expected `Client<..>`, found `Client` | Клиент с собственным бэкендом — это `Client<Backend>`; назовите тип или обобщите по `B: svir::http::Backend` |
 | A future is not `Send`, в реализации `Layer` или `Toolbox` | Что-то не `Send` (`Rc`, `std::sync::MutexGuard`) удерживается через `.await` |
 | Expected `ToolResult`, found `Result<..>` в `Toolbox::call` | `call` возвращает результат для модели, а не ошибку: превратите сбой в `ToolResult::error(&call.id, message)` |

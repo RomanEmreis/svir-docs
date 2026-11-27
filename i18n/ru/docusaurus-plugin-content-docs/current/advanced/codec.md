@@ -6,13 +6,14 @@ description: Encoder и Decoder без клиента svir — для собст
 
 # Кодек сам по себе
 
-`Encoder` и `Decoder` — то, из чего собран клиент, и они публичные. С
-`default-features = false` svir — это только типы и кодек: ни клиента, ни
-hyper, ни Tokio.
+`Encoder` и `Decoder` — то, из чего собран клиент, и они публичные: по паре на
+каждый протокол, в `svir::openai::chat` и `svir::anthropic::messages`, с
+одинаковыми вызовами. С `default-features = false` svir — это только типы и
+кодеки: ни клиента, ни hyper, ни Tokio.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.7", default-features = false }
+svir = { version = "0.2", default-features = false }
 ```
 
 Если единственная причина — другой HTTP-клиент, то
@@ -52,6 +53,9 @@ fn decode() -> Result<Option<Completion>, Error> {
     Ok(answer)
 }
 ```
+
+Декодер Messages, `svir::anthropic::messages::Decoder`, работает так же, а на
+вход получает именованные события этого API.
 
 | Вызов | Что делает |
 |---|---|
@@ -94,9 +98,10 @@ fn encode(request: &Request) -> Result<(u64, bytes::Bytes), Error> {
 | Вызов | Что делает |
 |---|---|
 | `Encoder::new()` | Отправляет то, что задано в запросе, и ничего больше |
-| `.include_usage(bool)` | Запрашивает расход токенов, если запрос не говорит иного. Здесь выключено; клиент его включает |
-| `.lean(bool)` | Опускает `reasoning_effort` и `stream_options` — для сервера, который, как известно, их отвергает. Выбор инструмента и формат ответа остаются |
-| `.context_tokens(n)` | Падает с `ContextOverflow`, если длина тела плюс `max_tokens` не помещается |
+| `.include_usage(bool)` | Только Chat Completions. Запрашивает расход токенов, если запрос не говорит иного. Здесь выключено; клиент его включает |
+| `.lean(bool)` | Только Chat Completions. Опускает `reasoning_effort` и `stream_options` — для сервера, который, как известно, их отвергает. Выбор инструмента и формат ответа остаются |
+| `.context_tokens(n)` | Падает с `ContextOverflow`, если оценка плюс `max_tokens` не помещается; см. [проверку контекста](../basics/attachments#context-admission) |
+| `.image_tokens(n)` | Сколько максимум засчитывается за одно изображение в этой оценке. По умолчанию 16384 |
 | `encode(&request)` | Без I/O. Вложение, заданное путём к файлу, — `ErrorKind::Attachment`; обязательный вызов инструмента, который запрос сделать не может, — `Unsupported` |
 | `encode_files(&request).await` | Фича `client`. Сначала измеряет файлы-вложения, чтобы длина была точной; текстовый файл с объявленным `escaped_len` не читается |
 | `body.len()` | `Content-Length` для отправки |
@@ -110,7 +115,8 @@ fn encode(request: &Request) -> Result<(u64, bytes::Bytes), Error> {
 
 Без клиента транспорт должен делать то, что делает клиент:
 
-1. `POST {base}/v1/chat/completions` с `content-type: application/json`,
+1. `POST {base}/v1/chat/completions` или `{base}/v1/messages` с
+   `anthropic-version: 2026-10-21`, с `content-type: application/json`,
    `accept: text/event-stream`, заголовком `Authorization`, если есть ключ, и
    `Content-Length` из `body.len()`.
 2. Считать любой неуспешный статус ошибкой ещё до разбора. Соответствие

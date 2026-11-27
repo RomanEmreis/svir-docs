@@ -27,7 +27,7 @@ key, the request URL, headers, or the server's message, so it is safe to log.
 
 | Kind | Retryable | Raised for | What to do |
 |---|---|---|---|
-| `Transport` | yes | The server could not be reached; HTTP 500, 502, 503 | Check that the server runs; retry with backoff |
+| `Transport` | yes | The server could not be reached; HTTP 500, 502, 503, 529 | Check that the server runs; retry with backoff |
 | `Timeout` | yes | A connect, idle, or layer deadline passed; HTTP 408, 504 | Retry, or raise the deadline for a slow local model |
 | `RateLimited` | yes | HTTP 429 | Wait `retry_after()` if present, then retry |
 | `TruncatedStream` | yes | The stream ended before the answer was complete | Send the request again if the partial answer can be discarded |
@@ -36,7 +36,7 @@ key, the request URL, headers, or the server's message, so it is safe to log.
 | `ContentFilter` | no | The server's content filter blocked the prompt | Change the prompt: the same one is blocked again, and billed again |
 | `Server` | no | The server reported a failure inside the stream | Read `server_message()`; the server's logs say more |
 | `Protocol` | no | A malformed or inconsistent response | Report it, with the raw stream |
-| `Unsupported` | no | Something svir cannot represent; a tool call required that the request cannot make; an unexpected status; a response that is not an event stream | See [Troubleshooting](./troubleshooting) |
+| `Unsupported` | no | Something svir or the wire API cannot represent, such as a Messages request without `max_tokens`; a tool call required that the request cannot make; an unexpected status; a response that is not an event stream | See [Troubleshooting](./troubleshooting) |
 | `ResponseLimit` | no | The response passed a configured [limit](./advanced/strictness#limits) | Raise `Limits` on purpose |
 | `Attachment` | no | A file could not be read, is not what it claims, or changed | Fix the file or its media type |
 | `Config` | no | The URL, the key source, or a header is not acceptable | Fix the builder call |
@@ -103,7 +103,8 @@ async fn ask(client: &Client, request: &Request) -> Next {
 
 A rejected request (400, 413, or 422) or an error inside the stream is
 `ContextOverflow` when its code names an overflow, or its message speaks of
-the context's length, size, window, or budget, or of compacted context.
+the context's length, size, window, or budget, or of compacted context, or
+says the prompt is too long, as the Messages API does.
 
 It is kept out of `Display` and `Debug` on purpose. A server's message can
 quote the prompt, a file name, or an internal address, and those do not belong

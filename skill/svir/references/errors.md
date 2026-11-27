@@ -33,7 +33,7 @@ API key, the request URL, headers, or the server's message.
 
 | Kind | Retryable | Raised for | What to do |
 |---|---|---|---|
-| `Transport` | yes | The server could not be reached; HTTP 500, 502, 503 | Check that the server runs; retry with backoff |
+| `Transport` | yes | The server could not be reached; HTTP 500, 502, 503, and 529 (svir 0.2) | Check that the server runs; retry with backoff |
 | `Timeout` | yes | A connect, idle, or layer deadline passed; HTTP 408, 504 | Retry, or raise the deadline for a slow local model |
 | `RateLimited` | yes | HTTP 429 | Wait `retry_after()` if present, then retry |
 | `TruncatedStream` | yes | The stream ended before the answer was complete | Send the request again if the partial answer can be discarded |
@@ -42,7 +42,7 @@ API key, the request URL, headers, or the server's message.
 | `ContentFilter` | no | The server's content filter blocked the prompt | Change the prompt: the same one is blocked again, and billed again |
 | `Server` | no | The server reported a failure inside the stream | Read `server_message()`; the server's logs say more |
 | `Protocol` | no | A malformed or inconsistent response | Report it, with the raw stream |
-| `Unsupported` | no | Something svir cannot represent; a tool call required that the request cannot make; an unexpected status; a response that is not an event stream | See the table below |
+| `Unsupported` | no | Something svir or the wire API cannot represent, such as a Messages request without `max_tokens`; a tool call required that the request cannot make; an unexpected status; a response that is not an event stream | See the table below |
 | `ResponseLimit` | no | The response passed a configured limit | Raise `Limits` on purpose |
 | `Attachment` | no | A file could not be read, is not what it claims, or changed | Fix the file or its media type |
 | `Config` | no | The URL, the key source, or a header is not acceptable | Fix the builder call |
@@ -103,7 +103,8 @@ list of validation errors, the first one's `msg`; svir 0.1.6); a plain-text
 body; or a message inside the stream. A rejected request (400, 413, 422) or
 an error inside the stream is `ContextOverflow` when its code names an
 overflow, or its message speaks of the context's length, size, window, or
-budget, or of compacted context.
+budget, or of compacted context, or says the prompt is too long (the
+Messages API's words; svir 0.2).
 
 It is kept out of `Display` and `Debug` on purpose. A server's message can
 quote the prompt, a file name, or an internal address, and those do not
@@ -126,12 +127,13 @@ fn explain(error: &Error) -> String {
 | Symptom | Usual cause |
 |---|---|
 | `Config` from `build()`: "plain HTTP to a host that is not loopback" | The URL is `http://` to another machine. Use `https://`, or `.allow_http()` for a trusted network |
-| `Config`: "an https URL needs the `tls` or the `tls-aws-lc` feature" | `default-features = false` without either |
-| A panic elsewhere: "no process-level CryptoProvider available" | Two rustls providers are compiled in: svir's `tls` brought ring next to another crate's aws-lc-rs. Take svir with `tls-aws-lc` instead of `tls`; see `client.md` |
+| `Config`: "an https URL needs the `tls-ring` or the `tls-aws-lc` feature" | svir 0.2's default build has no TLS. Add `features = ["tls-ring"]` or `["tls-aws-lc"]`. On 0.1 the message names `tls`, and means `default-features = false` without either |
+| A panic elsewhere: "no process-level CryptoProvider available" | Two rustls providers are compiled in: svir's `tls-ring` (`tls` on 0.1) brought ring next to another crate's aws-lc-rs. Take svir with `tls-aws-lc`; see `client.md` |
+| Cargo: "the package `svir` does not have the feature `tls`" | svir 0.2 renamed it `tls-ring`. See `migration.md` |
 | `Config`: "the API key variable ... is not set" | `api_key_env` names a variable the process does not have. svir reads no `.env` file |
 | `Config`: "http() must be called before layers are added" | Move `.http(backend)` above `.layer(..)` and `.wrap(..)` |
 | `Config`: "a header name is not valid" | A name given to `.header(..)` has a space or another character a header name cannot have |
-| `Config`: "the header ... is set by svir, not by the caller" | `.header(..)` named `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, or `connection`. The Bearer key goes through `api_key` |
+| `Config`: "the header ... is set by svir, not by the caller" | `.header(..)` named `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection`, or `anthropic-version`. The Bearer key goes through `api_key` |
 | `Config`: "the value of header ... is not valid" | The value has a line break, another control character, or text that is not ASCII. Often a value read from a file with its trailing newline: trim it |
 | `Transport`, `is_unsent()` true | Nothing listens at the URL: the server is not running, or the port is wrong |
 | `Unsupported`, detail "HTTP 404" | The base URL points somewhere that is not the API (a path too many, a web UI), or the server does not know the model. `server_message()` usually says which |
@@ -154,7 +156,13 @@ fn explain(error: &Error) -> String {
 | `Timeout`: "the server sent no response" or "the response stalled" | Silence for longer than the idle timeout (5 min by default). A local model on a long prompt can take longer; raise `idle_timeout` |
 | `Timeout` from a `Timeout::first_token` layer on a local model | The deadline is shorter than the model needs to read the prompt |
 | `TruncatedStream` | The connection was cut: a gateway's own timeout, a server that crashed or was unloaded |
-| `ContextOverflow` before anything was sent | `context_tokens` is set and the body's bytes plus `max_tokens` exceed it. Bytes overestimate images by far |
+| `ContextOverflow` before anything was sent | `context_tokens` is set and the estimate plus `max_tokens` exceeds it. Each image counts up to `image_tokens` (16384 by default, svir 0.2; on 0.1 all its bytes): lower it for a model that charges less |
+| `Unsupported`: "the Messages API needs max_tokens" | Set `max_tokens` on the request; the Messages API requires it |
+| `Unsupported`: "the Messages API has no minimal effort" | Use `Effort::Low` |
+| `Unsupported`: "the Messages API takes a JSON answer only with a schema" | Give a `Schema` in place of `ResponseFormat::Json` |
+| `Unsupported`, detail "HTTP 400", from the Messages API, naming `temperature` | Hosted Claude models take no `temperature` on API version `2026-10-21`. Leave it unset |
+| `Unsupported`, detail "HTTP 400", from the Messages API: "thinking.type.disabled is not supported" | The model cannot turn thinking off. Use a low effort in place of `Effort::Off` |
+| `Unsupported`, detail "HTTP 400", from the Messages API: "Invalid signature in thinking block" | An assistant turn was rebuilt by hand, or an earlier message was edited. Put the `Completion` back with `request.assistant(done)` and keep the history append-only |
 | `ContextOverflow` from the server | The conversation outgrew the context. Some servers say it inside a `200` stream; svir reports both the same way |
 | `ContextOverflow` from mlx-vlm on every request | The server's `--max-tokens` counts toward its context limit (`MAX_KV_SIZE`) when a request sets no `max_tokens`. Set `max_tokens`, or start the server with a lower `--max-tokens` |
 | `Attachment`: "an image has no media type" | An extension other than `png`, `jpg`, `jpeg`, `gif`, `webp`. Add `.media_type(..)` |

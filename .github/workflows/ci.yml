@@ -32,6 +32,15 @@ jobs:
       # anchors or code drifted from the English pages.
       - run: python3 ci/check-site.py
 
+  # The rules in CONTRIBUTING.md a script can check: one svir version, no
+  # version history in the guides, and the same pages in both locales.
+  rules:
+    name: Docs rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 ci/check-docs.py
+
   # Every Rust snippet on the site and in the Agent Skill is compiled against
   # the published svir crate. See ci/check-snippets.py for the conventions.
   snippets:
@@ -39,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # bump alongside the version the docs describe
-      SVIR_VERSION: "0.1.7"
+      SVIR_VERSION: "0.2"
       # The generated crates live in a temp dir outside the repo, so point
       # cargo at a fixed path we can actually cache.
       CARGO_TARGET_DIR: ${{ github.workspace }}/.snippet-target

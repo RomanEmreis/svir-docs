@@ -108,7 +108,7 @@ function WorksWith() {
       <div className="container">
         <p className={styles.worksWithLabel}>
           <Translate id="homepage.worksWith.label">
-            Speaks OpenAI-compatible Chat Completions, as served by
+            Speaks Chat Completions and the Anthropic Messages API, as served by
           </Translate>
         </p>
         <ul className={styles.servers}>
@@ -117,6 +117,9 @@ function WorksWith() {
           ))}
           <li>
             <Translate id="homepage.worksWith.hosted">OpenAI-compatible endpoints</Translate>
+          </li>
+          <li>
+            <Translate id="homepage.worksWith.anthropic">the Anthropic API</Translate>
           </li>
         </ul>
       </div>

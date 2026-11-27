@@ -21,10 +21,13 @@
     "message": "Agent Skill"
   },
   "homepage.worksWith.label": {
-    "message": "Работает с серверами OpenAI-совместимого Chat Completions"
+    "message": "Работает с Chat Completions и Anthropic Messages API на серверах"
   },
   "homepage.worksWith.hosted": {
     "message": "OpenAI-совместимые эндпоинты"
+  },
+  "homepage.worksWith.anthropic": {
+    "message": "Anthropic API"
   },
   "homepage.example.stream.title": {
     "message": "Ответ потоком"

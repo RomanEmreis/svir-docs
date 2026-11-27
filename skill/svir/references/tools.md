@@ -121,7 +121,8 @@ itself.
 
 Chat Completions has no field that marks a failed call, so the encoder sends
 `error: ` before the content: the model reads `error: no weather station in
-Atlantis`. Two consequences:
+Atlantis`. The Messages API has one, `is_error`, and gets the content as it
+is. Two consequences:
 
 * Do not write the prefix by hand. `ToolResult::error(id, "error: ...")`
   sends it twice; `ToolResult::new(id, "error: ...")` reads as a failure to
@@ -212,12 +213,15 @@ joining them is the decoder's work: use `Completion::calls`.
 The model decides by default. `Request::tool_choice` (svir 0.1.5) decides
 instead:
 
-| `ToolChoice` | The model | Sent as |
-|---|---|---|
-| `Auto` | Decides. The default | Nothing |
-| `None` | May not call a tool | `"none"`; nothing when the request offers no tools |
-| `Required` | Must call at least one of the tools offered | `"required"` |
-| `ToolChoice::tool(name)` | Must call this tool, which the request offers | `{"type": "function", "function": {"name": ...}}` |
+| `ToolChoice` | The model | Chat Completions | Messages API |
+|---|---|---|---|
+| `Auto` | Decides. The default | Nothing | Nothing |
+| `None` | May not call a tool | `"none"`; nothing without tools | `{"type": "none"}`; nothing without tools |
+| `Required` | Must call at least one of the tools offered | `"required"` | `{"type": "any"}` |
+| `ToolChoice::tool(name)` | Must call this tool, which the request offers | `{"type": "function", "function": {"name": ...}}` | `{"type": "tool", "name": ...}` |
+
+The newest Claude models reject `Required` and a named tool with a 400; LM
+Studio's Messages endpoint ignores a named tool.
 
 ```rust
 use serde_json::json;

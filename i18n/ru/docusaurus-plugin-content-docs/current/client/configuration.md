@@ -6,9 +6,11 @@ description: Билдер клиента, базовые URL, API-ключи, д
 
 # Настройка
 
-`Client::openai(url)` возвращает `ClientBuilder`. Каждый метод принимает
-`self` и возвращает его, а `build()` возвращает `Result<Client, Error>`: URL,
-источник ключа и заголовки проверяются здесь, а не при первом запросе.
+`Client::openai(url)` и `Client::anthropic()` возвращают `ClientBuilder`.
+Каждый метод принимает `self` и возвращает его, а `build()` возвращает
+`Result<Client, Error>`: URL, источник ключа и заголовки проверяются здесь, а
+не при первом запросе. Билдер для обоих протоколов один; чем отличается
+Messages API, — на странице [Anthropic Messages](./anthropic).
 
 ```rust
 use std::time::Duration;
@@ -28,6 +30,7 @@ fn client() -> Result<Client, Error> {
 
 | Метод | Что делает | По умолчанию |
 |---|---|---|
+| `base_url(url)` | Где сервер: другой сервер вместо того, что назвал конструктор | Сервер конструктора |
 | `api_key(key)` / `api_key_env(name)` / `api_key_file(path)` | Bearer-аутентификация | Нет |
 | `header(name, value)` | Заголовок, который уходит с каждым запросом, — для шлюза или хостингового эндпоинта | Нет |
 | `allow_http()` | Обычный HTTP к хосту, который не loopback | Запрещено |
@@ -38,7 +41,8 @@ fn client() -> Result<Client, Error> {
 | `lenient()` / `mode(Mode)` | Насколько строго читаются ответы | Строго |
 | `limits(Limits)` | Лимиты на один ответ | 64 МиБ, 256 КиБ на событие, 64 вызова инструментов |
 | `think(Think)` | Что делать с inline-тегами `<think>` | Вырезать в рассуждения |
-| `context_tokens(n)` | Отклонять запрос, который не поместится, ещё до отправки | Выключено |
+| `context_tokens(n)` | Отклонять запрос, который не поместится, ещё до отправки; см. [проверку контекста](../basics/attachments#context-admission) | Выключено |
+| `image_tokens(n)` | Сколько токенов максимум засчитывается за одно изображение при проверке контекста | 16384 |
 | `http(backend)` | Другой HTTP-бэкенд | hyper |
 | `layer(l)` / `wrap(closure)` | Middleware вокруг каждого вызова | Нет |
 
@@ -52,15 +56,18 @@ URL и никогда — ключ или значение заголовка.
 ## Базовый URL {/* #the-base-url */}
 
 Передайте базу сервера — с `/v1` и завершающим слешем или без; svir сам
-добавит `/v1/chat/completions` и `/v1/models`. Путь перед этим сохраняется:
+добавит `/v1/chat/completions` для Chat Completions, `/v1/messages` для
+Messages API и `/v1/models`. Путь перед этим сохраняется:
 `http://host/openai/v1` вызывает `http://host/openai/v1/chat/completions`.
+`Client::anthropic()` начинает с `https://api.anthropic.com`, а `base_url`
+направляет его на другой сервер с эндпоинтом Messages.
 
 `build()` завершается с `ErrorKind::Config`, если:
 
 | URL | Почему |
 |---|---|
 | `http://` к хосту, который не loopback | Ключи и промпты пошли бы по сети открытым текстом. Используйте `https://` или `.allow_http()` для доверенной сети |
-| `https://` без фичи `tls` или `tls-aws-lc` | Ни одна не включена; см. [Фичи и TLS](./features) |
+| `https://` без фичи `tls-ring` или `tls-aws-lc` | Ни одна не включена; см. [Фичи и TLS](./features) |
 | Учётные данные, query или fragment в URL | Ключу место в `api_key`, а не в URL |
 | Нет схемы (`127.0.0.1:1234`) | Пишите `http://127.0.0.1:1234` |
 
@@ -111,7 +118,7 @@ fn client() -> Result<Client, Error> {
 |---|---|
 | Имя, которое не может быть именем заголовка (`"x title"`, `""`) | Его нельзя отправить |
 | Значение с переводом строки, другим управляющим символом или не-ASCII текстом | Перевод строки закончил бы заголовок и начал другой |
-| `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection` | Их svir пишет сам, или они задают рамки запроса. Bearer-ключ передаётся через `api_key` |
+| `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection`, `anthropic-version` | Их svir пишет сам, или они задают рамки запроса. Bearer-ключ передаётся через `api_key` |
 
 Заголовки принадлежат клиенту и одинаковы для всех запросов. Заголовков на
 отдельный запрос нет: [слой](./layers) работает над HTTP и добавить заголовок
@@ -146,7 +153,8 @@ async fn models(client: &Client) -> Result<Vec<String>, Error> {
 
 Список — ровно то, что сообщает сервер, без фильтрации: модели эмбеддингов и
 речи стоят в нём рядом с чат-моделями. У `Model` есть `id` — ID для запроса —
-и необязательное отображаемое имя `name`.
+и необязательное отображаемое имя `name`. Из Messages API список собирается со
+всех страниц, а `name` — это `display_name` модели.
 
 :::tip
 Некоторые локальные серверы отвечают той моделью, что сейчас загружена, если
@@ -155,6 +163,9 @@ async fn models(client: &Client) -> Result<Vec<String>, Error> {
 :::
 
 ## Обработка совместимости {/* #compatibility-handling */}
+
+Это касается только Chat Completions: у Messages API нет необязательных полей
+в этом смысле, и его клиент отправляет каждый запрос один раз.
 
 Некоторые серверы отвергают необязательные поля `reasoning_effort` и
 `stream_options` с кодом `400` или `422`. Тогда клиент отправляет запрос ещё

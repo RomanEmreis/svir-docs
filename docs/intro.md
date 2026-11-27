@@ -11,14 +11,17 @@ svir is a small, composable Rust SDK for talking to large language models: the
 wire protocol between your application and a model server, and nothing it does
 not need.
 
-It speaks **OpenAI-compatible Chat Completions, always streamed**, as served by
-LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, Azure OpenAI, and hosted endpoints.
+It speaks two wire APIs, always streamed, behind the same types:
+**OpenAI-compatible Chat Completions**, as served by LM Studio, llama.cpp,
+vLLM, mlx-lm, mlx-vlm, Azure OpenAI, and hosted endpoints, and the
+**Anthropic Messages API**, hosted or on a server with a Messages endpoint.
 
 :::warning[Preview]
 svir is in preview. The public API may still change between `0.x` releases.
 What changed is in the
-[changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md). This
-site describes **svir 0.1.7**.
+[changelog](https://github.com/RomanEmreis/svir/blob/main/CHANGELOG.md), and
+what to change when you upgrade on [Migration](./reference/migration). This
+site describes **svir 0.2**.
 :::
 
 ## Install
@@ -27,7 +30,7 @@ svir needs Rust **1.85** or newer (edition 2024). If you do not have Rust yet,
 install it with [`rustup`](https://rustup.rs/).
 
 ```bash
-cargo add svir
+cargo add svir --features tls-ring
 cargo add tokio --features macros,rt-multi-thread
 ```
 
@@ -35,11 +38,13 @@ Or by hand:
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = "0.1.7"
+svir = { version = "0.2", features = ["tls-ring"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-The default features give you the client and HTTPS. The others are opt-in; see
+The default features give you the client over plain HTTP, all a local server
+needs. `tls-ring` adds HTTPS, for a hosted API; `tls-aws-lc` does the same with
+another crypto provider. The other features are opt-in; see
 [Features and TLS](./client/features).
 
 ## A first call
@@ -88,6 +93,11 @@ What this shows, and what every svir program repeats:
   arrive; the last one, `Event::Completed`, carries the whole answer.
 - Dropping the stream cancels the request.
 
+The same program talks to the Anthropic Messages API with
+`Client::anthropic()` in place of `Client::openai(url)`, and a `max_tokens` on
+the request, which that API requires; see
+[Anthropic Messages](./client/anthropic).
+
 ## What it covers
 
 The core is the protocol:
@@ -96,15 +106,20 @@ The core is the protocol:
   calls, and results; a tool call required or forbidden; an answer as JSON, or
   JSON to a schema; usage; finish reasons; one typed error.
 - **Encoder**: the request body, streamed from disk with attachments, with an
-  exact `Content-Length` known before the first byte.
-- **Decoder**: SSE framing, tool calls assembled across deltas, reasoning from
-  `reasoning_content`, `reasoning`, or inline `<think>` tags, usage, errors
-  inside the stream, and hard limits. Strict by default, lenient on request.
-- **Transport**: HTTP with optional Bearer authentication, typed status
-  mapping, timeouts, and cancellation by drop.
-- **Compatibility**: a server that rejects optional fields such as
-  `reasoning_effort` is detected once and remembered, unless the caller turns
-  that off. What the answer must meet, a tool choice or a response format, is
+  exact `Content-Length` known before the first byte. That length is also the
+  estimate that refuses a request too long for the context, with each image
+  capped at what a model may charge for one.
+- **Decoder**: SSE framing, tool calls assembled across deltas or blocks,
+  reasoning from `reasoning_content`, `reasoning`, inline `<think>` tags, or
+  signed thinking blocks, usage, errors inside the stream, and hard limits.
+  Strict by default, lenient on request. An answer keeps its blocks in order,
+  so it goes back to the server as it came.
+- **Transport**: HTTP, and HTTPS with the rustls provider you choose, with
+  optional Bearer authentication, typed status mapping, timeouts, and
+  cancellation by drop.
+- **Compatibility**: a Chat Completions server that rejects optional fields
+  such as `reasoning_effort` is detected once and remembered, unless the
+  caller turns that off. What the answer must meet, a tool choice or a response format, is
   never dropped.
 
 On top of it, opt-in:
@@ -144,9 +159,10 @@ show the few lines each one takes.
 - [Structured output](./basics/structured-output) reads an answer as JSON into
   a type.
 - [Configuration](./client/configuration) and [Layers](./client/layers) cover
-  the client.
+  the client, and [Anthropic Messages](./client/anthropic) what differs for
+  that API.
 - [Errors](./errors) and [Troubleshooting](./troubleshooting) are for when it
-  does not work.
+  does not work, and [Migration](./reference/migration) for when you upgrade.
 - The [Agent Skill](./agent-skill) teaches a coding assistant all of the above.
 
 The [examples directory](https://github.com/RomanEmreis/svir/tree/main/examples)

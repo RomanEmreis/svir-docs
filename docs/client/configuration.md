@@ -6,9 +6,11 @@ description: The client builder, base URLs, API keys, extra headers, timeouts, l
 
 # Configuration
 
-`Client::openai(url)` returns a `ClientBuilder`. Every method takes `self` and
-returns it, and `build()` returns `Result<Client, Error>`: the URL, the key
-source, and the headers are checked there, not on the first request.
+`Client::openai(url)` and `Client::anthropic()` return a `ClientBuilder`. Every
+method takes `self` and returns it, and `build()` returns
+`Result<Client, Error>`: the URL, the key source, and the headers are checked
+there, not on the first request. The builder is the same for both wire APIs;
+what differs for the Messages API is on [Anthropic Messages](./anthropic).
 
 ```rust
 use std::time::Duration;
@@ -28,6 +30,7 @@ fn client() -> Result<Client, Error> {
 
 | Method | Effect | Default |
 |---|---|---|
+| `base_url(url)` | Where the server is: another server than the one the constructor named | The constructor's |
 | `api_key(key)` / `api_key_env(name)` / `api_key_file(path)` | Bearer authentication | None |
 | `header(name, value)` | A header sent with every request, for a gateway or a hosted endpoint | None |
 | `allow_http()` | Plain HTTP to a host that is not loopback | Refused |
@@ -38,7 +41,8 @@ fn client() -> Result<Client, Error> {
 | `lenient()` / `mode(Mode)` | How strictly responses are read | Strict |
 | `limits(Limits)` | Bounds on one response | 64 MiB, 256 KiB per event, 64 tool calls |
 | `think(Think)` | What to do with inline `<think>` tags | Split into reasoning |
-| `context_tokens(n)` | Refuse a request that cannot fit, before sending it | Off |
+| `context_tokens(n)` | Refuse a request that cannot fit, before sending it; see [context admission](../basics/attachments#context-admission) | Off |
+| `image_tokens(n)` | The most one image counts for in context admission | 16384 |
 | `http(backend)` | Another HTTP backend | hyper |
 | `layer(l)` / `wrap(closure)` | Middleware around every call | None |
 
@@ -52,15 +56,18 @@ Strictness and limits have a page of their own:
 ## The base URL
 
 Pass the server's base, with or without `/v1` and a trailing slash; svir
-appends `/v1/chat/completions` and `/v1/models`. A path in front is kept:
+appends `/v1/chat/completions` for Chat Completions, `/v1/messages` for the
+Messages API, and `/v1/models`. A path in front is kept:
 `http://host/openai/v1` calls `http://host/openai/v1/chat/completions`.
+`Client::anthropic()` starts at `https://api.anthropic.com`, and `base_url`
+points it at another server with a Messages endpoint.
 
 `build()` fails with `ErrorKind::Config` for:
 
 | The URL | Why |
 |---|---|
 | `http://` to a host that is not loopback | Keys and prompts would cross the network in the clear. Use `https://`, or `.allow_http()` for a trusted network |
-| `https://` without the `tls` or the `tls-aws-lc` feature | Neither is on; see [Features and TLS](./features) |
+| `https://` without the `tls-ring` or the `tls-aws-lc` feature | Neither is on; see [Features and TLS](./features) |
 | Credentials, a query, or a fragment in the URL | A key belongs in `api_key`, not in the URL |
 | No scheme (`127.0.0.1:1234`) | Write `http://127.0.0.1:1234` |
 
@@ -111,7 +118,7 @@ fn client() -> Result<Client, Error> {
 |---|---|
 | A name that is not a header name (`"x title"`, `""`) | It cannot be sent |
 | A value with a line break, another control character, or text that is not ASCII | A line break would end the header and start another |
-| `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection` | svir writes these itself, or they frame the request. The Bearer key goes through `api_key` |
+| `authorization`, `content-type`, `content-length`, `accept`, `host`, `transfer-encoding`, `connection`, `anthropic-version` | svir writes these itself, or they frame the request. The Bearer key goes through `api_key` |
 
 The headers are the client's, the same on every request. There are no headers
 per request: a [layer](./layers) works above HTTP and cannot add one.
@@ -145,7 +152,8 @@ async fn models(client: &Client) -> Result<Vec<String>, Error> {
 
 The listing is what the server reports, unfiltered: embedding and speech models
 are in it next to chat models. `Model` has `id`, the ID to put in a request,
-and an optional display `name`.
+and an optional display `name`. From the Messages API, the listing is every
+page of it, and `name` is the model's `display_name`.
 
 :::tip
 Some local servers answer with whatever model is loaded when they do not know
@@ -154,6 +162,9 @@ and check the ID.
 :::
 
 ## Compatibility handling
+
+This is Chat Completions only: the Messages API has no optional fields in this
+sense, so its client sends each request once.
 
 Some servers reject optional fields, `reasoning_effort` and `stream_options`,
 with a `400` or `422`. The client then sends the request once more without

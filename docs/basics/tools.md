@@ -73,7 +73,7 @@ argument type, doc comments included.
 
 ```toml title="Cargo.toml"
 [dependencies]
-svir = { version = "0.1.7", features = ["schemars"] }
+svir = { version = "0.2", features = ["schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 ```
@@ -121,8 +121,9 @@ message worth reading, not a panic: the model reads it and can correct itself.
 
 Chat Completions has no field that marks a failed call, so the encoder sends
 `error: ` before the content: the model reads `error: no weather station in
-Atlantis`. Do not write the prefix yourself; a failed result that already has
-it says it twice.
+Atlantis`. The Messages API has one, `is_error`, and gets the content as it
+is. Do not write the prefix yourself; a failed result that already has it says
+it twice.
 
 Anything else is turned into one of these by the handler: serialize a struct
 with `serde_json::to_value`, or format it.
@@ -209,12 +210,12 @@ of the stream, never from a stream that was cut short.
 By default the model decides whether to call a tool. `Request::tool_choice`
 decides instead:
 
-| `ToolChoice` | The model | Sent as |
-|---|---|---|
-| `Auto` | Decides. The default | Nothing |
-| `None` | May not call a tool | `"none"`; nothing when the request offers no tools |
-| `Required` | Must call at least one of the tools offered | `"required"` |
-| `ToolChoice::tool(name)` | Must call this tool, which the request offers | `{"type": "function", "function": {"name": ...}}` |
+| `ToolChoice` | The model | Chat Completions | Messages API |
+|---|---|---|---|
+| `Auto` | Decides. The default | Nothing | Nothing |
+| `None` | May not call a tool | `"none"`; nothing when the request offers no tools | `{"type": "none"}`; nothing without tools |
+| `Required` | Must call at least one of the tools offered | `"required"` | `{"type": "any"}` |
+| `ToolChoice::tool(name)` | Must call this tool, which the request offers | `{"type": "function", "function": {"name": ...}}` | `{"type": "tool", "name": ...}` |
 
 ```rust
 use serde_json::json;
@@ -243,17 +244,19 @@ fn classify(ticket: &str) -> Request {
   [compatibility handling](../client/configuration#compatibility-handling)
   keeps it, and a server that does not take it fails the request with
   `Unsupported` and its own words. LM Studio rejects a tool named in the
-  choice; with that one tool offered, `Required` asks the same. vLLM takes a
-  choice only when started with a tool-call parser
+  choice on Chat Completions; with that one tool offered, `Required` asks the
+  same. vLLM takes a choice only when started with a tool-call parser
   (`--enable-auto-tool-choice --tool-call-parser ...`); without one, a
-  request with tools fails with `400` unless its choice is `None`.
+  request with tools fails with `400` unless its choice is `None`. The newest
+  Claude models reject `Required` and a named tool with `400`.
 - **A call of a named tool finishes with `ToolCalls`.** vLLM finishes it with
   `stop` on the wire, as OpenAI has been reported to; svir reads the calls and
   makes the finish `ToolCalls`, as for `Auto` and `Required`.
 - **The answer is not checked against the choice.** A server may take it and
   not keep it: LM Studio accepts `Required` and can answer with text and no
-  call, llama.cpp does not keep a named tool, and mlx-lm reads no tool choice
-  at all. `done.calls` says what the model called.
+  call, and ignores a named tool on its Messages endpoint; llama.cpp does not
+  keep a named tool, and mlx-lm reads no tool choice at all. `done.calls` says
+  what the model called.
 - **In a loop, the choice stays on the request.** A model required to call a
   tool on every turn never gets to answer. Once it has called, set the choice
   back with the results:
