@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 title: Errors
 description: One error type, a kind to act on, and the server's own message kept out of logs.
 ---

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 9
 title: Agent Skill
 description: A packaged Agent Skill that teaches a coding assistant to write svir correctly.
 ---

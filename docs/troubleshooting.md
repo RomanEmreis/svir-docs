@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 title: Troubleshooting
 description: Symptom to cause, at runtime and at compile time.
 ---
