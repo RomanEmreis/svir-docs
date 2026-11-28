@@ -102,7 +102,7 @@ can tell whether the skill matches the crate in front of it:
 
 ```yaml
 metadata:
-  svir-version: "0.2.0"
+  svir-version: "0.2.1"
   msrv: "1.85"
   wire-api: "OpenAI-compatible Chat Completions and Anthropic Messages, streaming"
 ```

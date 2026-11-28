@@ -18,9 +18,21 @@ Each release splits its changes in two:
 - **Compiles, answers differently**: nothing flags these, so the entry says what
   to look for.
 
+## 0.2.1
+
+### Compiles, answers differently {/* #021-compiles-answers-differently */}
+
+- **A schema derived from a type with no fields has `properties`.**
+  `Tools::add` and `Schema::of` derived `{"type": "object"}` for it, which
+  LM Studio refuses with 400; they derive
+  `{"type": "object", "properties": {}}` now. A tool described with
+  `add_tool(Tool::new(..), ..)` to get around it works as before, and can use
+  `add` again. A test that compares a derived schema with a fixed value sees
+  the new key.
+
 ## 0.2.0
 
-### Does not compile
+### Does not compile {/* #020-does-not-compile */}
 
 - **The `tls` feature is now `tls-ring`.** Cargo stops at a manifest that names
   `tls`. Rename it:
@@ -30,7 +42,7 @@ Each release splits its changes in two:
   svir = { version = "0.2", features = ["tls-ring"] }
   ```
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #020-compiles-answers-differently */}
 
 - **The default features have no TLS.** A build on the default features that
   talks to an `https://` URL gets `ErrorKind::Config` from `build()`, with an
@@ -58,7 +70,7 @@ Each release splits its changes in two:
 
 ## 0.1.7
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #017-compiles-answers-differently */}
 
 - **With a `Length` finish, `calls` is empty.** The calls the output limit cut
   off are in `cut_calls`, as `ToolCallDelta`s, never to run. Code that runs
@@ -73,7 +85,7 @@ Each release splits its changes in two:
 
 ## 0.1.6
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #016-compiles-answers-differently */}
 
 - **A call of a named tool that the server finishes with `stop` completes with
   `ToolCalls`**, as vLLM sends it. It failed with `Protocol`.
@@ -86,7 +98,7 @@ Each release splits its changes in two:
 
 ## 0.1.5
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #015-compiles-answers-differently */}
 
 - **A refusal is read.** Strict mode failed it with `Unsupported`, and lenient
   mode completed with `Stop` and no text. Now the refusal is the text, and the
@@ -95,7 +107,7 @@ Each release splits its changes in two:
 
 ## 0.1.4
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #014-compiles-answers-differently */}
 
 - **A failed call from `Tools` is flagged with `is_error`**, and its `content`
   no longer starts with `error: `. What a Chat Completions model reads is the
@@ -105,7 +117,7 @@ Each release splits its changes in two:
 
 ## 0.1.3
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #013-compiles-answers-differently */}
 
 - **A prompt the content filter blocked is `ErrorKind::ContentFilter`**, and is
   sent once. It was `Unsupported`, after a second attempt that was billed
@@ -116,7 +128,7 @@ Each release splits its changes in two:
 
 ## 0.1.2
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #012-compiles-answers-differently */}
 
 - **A filtered answer finishes with `FinishReason::ContentFilter`.** It was
   `Unsupported`.
@@ -125,7 +137,7 @@ Each release splits its changes in two:
 
 ## 0.1.1
 
-### Compiles, answers differently
+### Compiles, answers differently {/* #011-compiles-answers-differently */}
 
 - **The default wire limit is 64 MiB.** It was 4 MiB, and cut off long answers
   with `ResponseLimit`.
