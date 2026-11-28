@@ -79,6 +79,10 @@ know which version introduced something.
     fix.
   * **Compiles, answers differently:** nothing flags these, so say what to
     look for.
+
+  Each of these headings keeps an ID made of its release, so that a new
+  section does not renumber the anchors below it:
+  `### Does not compile {/* #021-does-not-compile */}`, in both locales.
 * **One version everywhere.** Every `svir` dependency in a `Cargo.toml` snippet
   names the current minor release (`"0.2"`, not `"0.2.0"`), and so do
   `SVIR_VERSION` in CI, the default in `check-snippets.py`, the first bold

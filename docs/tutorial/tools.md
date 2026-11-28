@@ -81,11 +81,10 @@ fn tools(&self) -> Tools {
 
 - **`add`** derives the schema from the handler's argument type. The doc
   comments on its fields become their descriptions, which the model reads.
-- **`add_tool`** takes a `Tool` you describe yourself. A tool with no
-  arguments uses it: `Tool::new` gives the schema of an empty object with an
-  empty `properties`, and some servers, LM Studio among them, refuse an object
-  schema that has no `properties` at all, which is what a derived schema of an
-  empty struct is.
+- **`add_tool`** takes a `Tool` you describe yourself. The two tools with no
+  arguments use it as `Tool::new` makes it, the schema of an object with no
+  properties, so their `Nothing` needs no `JsonSchema`: it only reads the
+  `{}` the model sends.
 - **A handler** is a closure that takes the arguments and returns a future.
   It lives as long as the registry, so it owns what it uses: each holds a
   clone of the workspace and clones it again for every call.

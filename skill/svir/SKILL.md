@@ -3,7 +3,7 @@ name: svir
 description: Talk to LLMs from Rust with the svir crate -- whole and streamed answers from OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, mlx-lm, mlx-vlm, hosted endpoints) and from the Anthropic Messages API (Claude, with signed thinking sent back), tool calling and the loop that feeds results back, a tool call required or forbidden, structured output (JSON to a schema, parsed into a type), image and file attachments, reasoning, typed errors, retries and timeouts as layers, relaying a model's event stream through a proxy, and the Chat Completions and Messages codecs on their own. Use whenever Rust code depends on `svir`, whenever the task is to call a model, stream its answer, give it tools, get JSON out of it or relay its stream from Rust through an OpenAI-compatible endpoint or the Anthropic API, when upgrading svir, and when reviewing or debugging such code.
 license: MIT OR Apache-2.0
 metadata:
-  svir-version: "0.2.0"
+  svir-version: "0.2.1"
   msrv: "1.85"
   edition: "2024"
   wire-api: "OpenAI-compatible Chat Completions and Anthropic Messages, streaming"

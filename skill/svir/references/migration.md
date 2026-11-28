@@ -6,6 +6,7 @@ for an upgrade. The rest of this skill describes svir 0.2.
 ## Contents
 
 - [A project on an older release](#a-project-on-an-older-release)
+- [Upgrading within 0.2](#upgrading-within-02)
 - [Upgrading to 0.2](#upgrading-to-02)
 - [Upgrading within 0.1](#upgrading-within-01)
 
@@ -16,6 +17,7 @@ after it:
 
 | Locked on | What it lacks, or does differently |
 |---|---|
+| 0.2.0 | `Tools::add` with an argument type that has no fields derives a schema without `properties`, which LM Studio refuses with 400: describe such a tool with `add_tool(Tool::new(..), ..)` |
 | 0.1.x | No Messages API (`Client::anthropic`, `svir::anthropic`), no `Reasoning::signature`, no `Completion::parts`, no `image_tokens`, no `ClientBuilder::base_url`. TLS is the `tls` feature, on by default; `tls-ring` does not exist. An image counts as all its bytes in `context_tokens`. A 529 is `Unsupported` |
 | 0.1.6 | No `Effort::Minimal` or `Effort::Max`, no `Completion::cut_calls`, no `ClientBuilder::lean_retry`. With a `Length` finish, calls the output limit may have cut short are in `calls`: check the finish before running them. A call with no ID or no name in such an answer fails with `Protocol` |
 | 0.1.5 | Reasoning that mlx-vlm sends under both `reasoning_content` and `reasoning` arrives twice. A call of a named tool that vLLM finishes with `stop` fails with `Protocol`. An error in FastAPI's form, `{"detail": ...}`, has no `server_message()` |
@@ -26,8 +28,15 @@ after it:
 | 0.1.0 | No `Error::status()`, no `tls-aws-lc`, a 4 MiB default wire limit, and inline `<think>` tags left in the text when a delta is only part of a tag |
 
 Do not write code for a newer API against an older lock file: say what the
-project would need, or run `cargo update -p svir` within 0.1, which is
-drop-in but for the behavior changes below.
+project would need, or run `cargo update -p svir` within its minor release,
+which is drop-in but for the behavior changes below.
+
+## Upgrading within 0.2
+
+Each 0.2 release is drop-in for code, with these changes in behavior:
+
+- **0.2.1**: a schema derived from a type with no fields, by `Tools::add` or
+  `Schema::of`, has `"properties": {}`.
 
 ## Upgrading to 0.2
 
